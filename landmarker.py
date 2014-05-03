@@ -12,8 +12,10 @@ if config.gzip:
     Compress(app)
     
 api = Api(app)
-api.decorators = [cors.crossdomain(origin='*',
+api.decorators = [cors.crossdomain(origin='http://www.landmarker.io',
                                    headers=['Content-Type'])]
+# api.decorators = [cors.crossdomain(origin='*',
+#                                   headers=['Content-Type'])]
 
 
 class Mesh(Resource):
@@ -106,4 +108,5 @@ api.add_resource(Template, api_endpoint + 'templates/<string:lm_id>')
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
+    #app.run(debug=True)
