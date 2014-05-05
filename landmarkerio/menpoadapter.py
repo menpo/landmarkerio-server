@@ -1,4 +1,3 @@
-import abc
 from copy import deepcopy
 from collections import defaultdict
 import glob
@@ -10,51 +9,8 @@ import StringIO
 import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
 
-from utils import load_template
-
-
-class LandmarkerJSAdapter(object):
-
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def mesh_ids(self):
-        pass
-
-    @abc.abstractmethod
-    def mesh_json(self, mesh_id):
-        pass
-
-    @abc.abstractmethod
-    def textured_mesh_ids(self):
-        pass
-
-    @abc.abstractmethod
-    def texture_file(self, mesh_id):
-        pass
-    @abc.abstractmethod
-    def all_landmarks(self):
-        pass
-
-    @abc.abstractmethod
-    def landmark_ids(self, mesh_id):
-        pass
-
-    @abc.abstractmethod
-    def landmark_json(self, mesh_id, lm_id):
-        pass
-
-    @abc.abstractmethod
-    def save_landmark_json(self, mesh_id, lm_id, lm_json):
-        pass
-
-    @abc.abstractmethod
-    def templates(self):
-        pass
-
-    @abc.abstractmethod
-    def template_json(self, lm_id):
-        pass
+from menpolmioserver.utils import load_template
+from menpolmioserver.lmioapi import LandmarkerIOAdapter
 
 
 def as_jpg_file(image):
@@ -65,7 +21,7 @@ def as_jpg_file(image):
     return output
 
 
-class MenpoAdapter(LandmarkerJSAdapter):
+class MenpoAdapter(LandmarkerIOAdapter):
 
     def __init__(self, model_dir, landmark_dir, template_dir):
         self.model_dir = model_dir
