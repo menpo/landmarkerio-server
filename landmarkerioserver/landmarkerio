@@ -3,11 +3,11 @@
 
 import os.path as p
 from landmarkerioserver.api import app_for_adapter
-from landmarkerioserver.menpoadapter import MenpoAdapter
+from landmarkerioserver.menpoadapter import MenpoAdapter, CachingMenpoAdapter
 import webbrowser
 
 
-def main(model_dir, landmark_dir=None, template_dir=None):
+def main(model_dir, landmark_dir=None, template_dir=None, cache=False):
     r"""
 
     """
@@ -23,12 +23,12 @@ def main(model_dir, landmark_dir=None, template_dir=None):
 
     gzip = False  # halves payload, increases server workload
     dev = False
-    print ('models: {}'.format(model_dir))
-    print ('landmarks: {}'.format(landmark_dir))
-    print ('templates: {}'.format(template_dir))
-    # Build a MenpoAdapter that will serve from the specified directories
-    adapter = MenpoAdapter(model_dir, landmark_dir, template_dir)
 
+    # Build a MenpoAdapter that will serve from the specified directories
+    if cache:
+        adapter = CachingMenpoAdapter(model_dir, landmark_dir, template_dir)
+    else:
+        adapter = MenpoAdapter(model_dir, landmark_dir, template_dir)
     webbrowser.open("http://www.landmarker.io")
     app = app_for_adapter(adapter, gzip=gzip, dev=dev)
     app.run()
@@ -41,14 +41,15 @@ if __name__ == "__main__":
         Serve landmarks and assets for landmarker.io through Menpo.
 
         """)
-    parser.add_argument("path", help="path that will be "
-                                     "searched for models. model filenames "
-                                     "must be unique.")
+    parser.add_argument("path", help="path that will be searched for models")
     parser.add_argument("-l", "--landmarks",
                         help="The directory containing the landmarks. "
                              "If None provided taken as path/landmarks")
     parser.add_argument("-t", "--templates",
-                        help="The directory containing the landmarks. "
+                        help="The directory containing the template files. "
                              "If None provided taken as path/templates")
+    parser.add_argument("--cache", action='store_true',
+                        help="Import all meshes at the start. Faster serving, "
+                             "higher server memory usage.")
     ns = parser.parse_args()
-    main(ns.path, ns.landmarks, ns.templates)
+    main(ns.path, ns.landmarks, ns.templates, ns.cache)
