@@ -2,8 +2,8 @@
 # encoding: utf-8
 
 import os.path as p
-from landmarkerio.api import app_for_adapter
-from landmarkerio.menpoadapter import MenpoAdapter
+from landmarkerioserver.api import app_for_adapter
+from landmarkerioserver.menpoadapter import MenpoAdapter
 import webbrowser
 
 
