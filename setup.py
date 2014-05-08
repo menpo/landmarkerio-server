@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import os.path as p
 
 setup(name='landmarkerio-server',
-      version='0.0.1',
+      version='0.0.2',
       description='Menpo-based server for www.landmarker.io',
       author='James Booth',
       author_email='james.booth08@imperial.ac.uk',
@@ -13,8 +13,6 @@ setup(name='landmarkerio-server',
           'Intended Audience :: Science/Research',
           'License :: OSI Approved :: BSD License',
           'Operating System :: OS Independent',
-          'Programming Language :: C++',
-          'Programming Language :: Cython',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
       ],
