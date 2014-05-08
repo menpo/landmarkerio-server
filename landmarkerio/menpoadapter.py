@@ -27,24 +27,9 @@ class MenpoAdapter(LandmarkerIOAdapter):
         self.model_dir = model_dir
         self.landmark_dir = landmark_dir
         self.template_dir = template_dir
-        print('Importing meshes...')
-        self.meshes = {}
-        self.textures = {}
-        for mesh in mio.import_meshes(p.join(self.model_dir, '*')):
-            mesh_id = mesh.ioinfo.filename
-            self.meshes[mesh_id] = mesh.tojson()
-            if isinstance(mesh, TexturedTriMesh):
-                self.textures[mesh_id] = as_jpg_file(mesh.texture)
-        print(' - {} meshes imported.'.format(len(self.meshes)))
-        print(' - {} meshes are textured.'.format(len(self.textures)))
-
-        # # HACK - Import basel face model for now.
-        # import scipy.io as sio
-        # x = sio.loadmat("/Users/jab08/Desktop/01_MorphableModel.mat")
-        # mean_head, trilist = x['shapeMU'], x['tl']
-        # trilist[:, [0, 1]] = trilist[:, [1, 0]]
-        # model = TriMesh(mean_head.reshape([-1, 3]), trilist=trilist - 1)
-        # self.meshes["basel"] = model.tojson()
+        print ('models: {}'.format(model_dir))
+        print ('landmarks: {}'.format(landmark_dir))
+        print ('templates: {}'.format(template_dir))
 
     def landmark_fp(self, model_id, lm_id):
         return p.join(self.landmark_dir, model_id, lm_id + '.json')
@@ -56,8 +41,14 @@ class MenpoAdapter(LandmarkerIOAdapter):
         return filter(lambda f: p.isfile(f) and
                                 p.splitext(f)[-1] == '.json', g)
 
+    def mesh_paths(self):
+        return mio.mesh_paths(p.join(self.model_dir, '*'))
+
+    def texture_paths(self):
+        return mio.image_paths(p.join(self.model_dir, '*'))
+
     def mesh_ids(self):
-        return list(self.meshes)
+        return [p.splitext(p.split(m)[1])[0] for m in self.mesh_paths()]
 
     def mesh_json(self, mesh_id):
         return self.meshes[mesh_id]
@@ -108,3 +99,31 @@ class MenpoAdapter(LandmarkerIOAdapter):
     def template_json(self, lm_id):
         fp = p.join(self.template_dir, lm_id + '.lmt')
         return load_template(fp)
+
+
+class CachingMenpoAdapter(MenpoAdapter):
+
+    def __init__(self, model_dir, landmark_dir, template_dir):
+        MenpoAdapter.__init__(self, model_dir, landmark_dir, template_dir)
+        print('Caching meshes and textures...')
+        self.meshes = {}
+        self.textures = {}
+        for mesh in mio.import_meshes(p.join(self.model_dir, '*')):
+            mesh_id = mesh.ioinfo.filename
+            self.meshes[mesh_id] = mesh.tojson()
+            if isinstance(mesh, TexturedTriMesh):
+                self.textures[mesh_id] = as_jpg_file(mesh.texture)
+        print(' - {} meshes imported.'.format(len(self.meshes)))
+        print(' - {} meshes are textured.'.format(len(self.textures)))
+
+    def mesh_ids(self):
+        return list(self.meshes)
+
+    def mesh_json(self, mesh_id):
+        return mio.import_meshes(p.join(self.model_dir, '*')]
+
+    def textured_mesh_ids(self):
+        return list(self.textures)
+
+    def texture_file(self, mesh_id):
+        return deepcopy(self.textures[mesh_id])
