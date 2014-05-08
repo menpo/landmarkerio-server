@@ -9,8 +9,8 @@ import StringIO
 import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
 
-from menpolmioserver.utils import load_template
-from menpolmioserver.lmioapi import LandmarkerIOAdapter
+from .utils import load_template
+from .api import LandmarkerIOAdapter
 
 
 def as_jpg_file(image):
@@ -120,7 +120,7 @@ class CachingMenpoAdapter(MenpoAdapter):
         return list(self.meshes)
 
     def mesh_json(self, mesh_id):
-        return mio.import_meshes(p.join(self.model_dir, '*')]
+        return mio.import_meshes(p.join(self.model_dir, '*'))
 
     def textured_mesh_ids(self):
         return list(self.textures)

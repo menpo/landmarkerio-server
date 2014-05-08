@@ -18,12 +18,11 @@ setup(name='landmarkerio-server',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
       ],
-      packages=find_packages(),
+      packages=['landmarkerioserver'],
       setup_requires=['menpo>=0.2.5'
                       #'Flask>=0.10.1',
                       #'Flask-Compress>=1.0.0',
                       #'Flask-RESTful>=0.2.11'
                       ],
-      scripts=[p.join('landmarkerio', 'landmarker.io')]
+      scripts=[p.join('landmarkerioserver', 'landmarkerio')]
       )
-

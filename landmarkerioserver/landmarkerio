@@ -6,6 +6,7 @@ from landmarkerio.api import app_for_adapter
 from landmarkerio.menpoadapter import MenpoAdapter
 import webbrowser
 
+
 def main(model_dir, landmark_dir=None, template_dir=None):
     r"""
 
