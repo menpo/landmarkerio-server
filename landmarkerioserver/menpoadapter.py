@@ -10,7 +10,7 @@ import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
 
 from .utils import load_template
-from .api import LandmarkerIOAdapter
+from .api import MeshLandmarkerIOAdapter, LandmarkerIOAdapter
 
 
 def as_jpg_file(image):
@@ -23,11 +23,9 @@ def as_jpg_file(image):
 
 class MenpoAdapter(LandmarkerIOAdapter):
 
-    def __init__(self, model_dir, landmark_dir, template_dir):
-        self.model_dir = model_dir
+    def __init__(self, landmark_dir, template_dir):
         self.landmark_dir = landmark_dir
         self.template_dir = template_dir
-        print ('models:    {}'.format(model_dir))
         print ('landmarks: {}'.format(landmark_dir))
         print ('templates: {}'.format(template_dir))
 
@@ -40,26 +38,6 @@ class MenpoAdapter(LandmarkerIOAdapter):
         g = glob.glob(p.join(self.landmark_dir, mesh_id, '*'))
         return filter(lambda f: p.isfile(f) and
                                 p.splitext(f)[-1] == '.json', g)
-
-    def mesh_paths(self):
-        return mio.mesh_paths(p.join(self.model_dir, '*'))
-
-    def texture_paths(self):
-        return mio.image_paths(p.join(self.model_dir, '*'))
-
-    def mesh_ids(self):
-        return [p.splitext(p.split(m)[1])[0] for m in self.mesh_paths()]
-
-    def mesh_json(self, mesh_id):
-        mesh_glob = p.join(self.model_dir, mesh_id + '.*')
-        return list(mio.import_meshes(mesh_glob))[0].tojson()
-
-    def textured_mesh_ids(self):
-        return [p.splitext(p.split(t)[1])[0] for t in self.texture_paths()]
-
-    def texture_file(self, mesh_id):
-        img_glob = p.join(self.model_dir, mesh_id + '.*')
-        return as_jpg_file(list(mio.import_images(img_glob))[0])
 
     def all_landmarks(self):
         landmark_files = self.landmark_paths()
@@ -103,10 +81,38 @@ class MenpoAdapter(LandmarkerIOAdapter):
         return load_template(fp)
 
 
-class CachingMenpoAdapter(MenpoAdapter):
+class MenpoAdapterMesh(MenpoAdapter, MeshLandmarkerIOAdapter):
 
     def __init__(self, model_dir, landmark_dir, template_dir):
-        MenpoAdapter.__init__(self, model_dir, landmark_dir, template_dir)
+        MenpoAdapter.__init__(self, landmark_dir, template_dir)
+        self.model_dir = model_dir
+        print ('models:    {}'.format(model_dir))
+
+    def mesh_paths(self):
+        return mio.mesh_paths(p.join(self.model_dir, '*'))
+
+    def texture_paths(self):
+        return mio.image_paths(p.join(self.model_dir, '*'))
+
+    def mesh_ids(self):
+        return [p.splitext(p.split(m)[1])[0] for m in self.mesh_paths()]
+
+    def mesh_json(self, mesh_id):
+        mesh_glob = p.join(self.model_dir, mesh_id + '.*')
+        return list(mio.import_meshes(mesh_glob))[0].tojson()
+
+    def textured_mesh_ids(self):
+        return [p.splitext(p.split(t)[1])[0] for t in self.texture_paths()]
+
+    def texture_file(self, mesh_id):
+        img_glob = p.join(self.model_dir, mesh_id + '.*')
+        return as_jpg_file(list(mio.import_images(img_glob))[0])
+
+
+class CachingMeshMenpoAdapter(MenpoAdapterMesh):
+
+    def __init__(self, model_dir, landmark_dir, template_dir):
+        MenpoAdapterMesh.__init__(self, model_dir, landmark_dir, template_dir)
         print('Caching meshes and textures...')
         self.meshes = {}
         self.textures = {}

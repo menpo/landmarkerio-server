@@ -2,8 +2,8 @@
 # encoding: utf-8
 
 import os.path as p
-from landmarkerioserver.api import app_for_adapter
-from landmarkerioserver.menpoadapter import MenpoAdapter, CachingMenpoAdapter
+from landmarkerioserver.api import app_for_mesh_adapter, app_for_image_adapter
+from landmarkerioserver.menpoadapter import MenpoAdapterMesh, CachingMeshMenpoAdapter
 import webbrowser
 
 
@@ -26,11 +26,11 @@ def main(model_dir, landmark_dir=None, template_dir=None, cache=False):
 
     # Build a MenpoAdapter that will serve from the specified directories
     if cache:
-        adapter = CachingMenpoAdapter(model_dir, landmark_dir, template_dir)
+        adapter = CachingMeshMenpoAdapter(model_dir, landmark_dir, template_dir)
     else:
-        adapter = MenpoAdapter(model_dir, landmark_dir, template_dir)
+        adapter = MenpoAdapterMesh(model_dir, landmark_dir, template_dir)
     webbrowser.open("http://www.landmarker.io")
-    app = app_for_adapter(adapter, gzip=gzip, dev=dev)
+    app = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
     app.run()
 
 
