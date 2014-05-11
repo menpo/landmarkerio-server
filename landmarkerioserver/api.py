@@ -187,7 +187,6 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
 
     """
     api, app, api_endpoint = app_for_adapter(adapter, gzip=gzip, dev=dev)
-    print 'yeah boi'
 
     class Mesh(Resource):
 
@@ -195,7 +194,7 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
             try:
                 return adapter.mesh_json(mesh_id)
             except:
-                abort(404, message="{} is not an available model".format(mesh_id))
+                abort(404, message="{} is not an available mesh".format(mesh_id))
 
     class MeshList(Resource):
 
@@ -246,13 +245,31 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
     """
     api, app, api_endpoint = app_for_adapter(adapter, gzip=gzip, dev=dev)
 
+    class Image(Resource):
+
+        def get(self, image_id):
+            try:
+                return adapter.image_json(image_id)
+            except:
+                abort(404, message="{} is not an available "
+                                   "image".format(image_id))
+
+    class ImageList(Resource):
+
+        def get(self):
+            return adapter.image_ids()
+
     class Texture(Resource):
 
-        def get(self, mesh_id):
+        def get(self, image_id):
             try:
-                return send_file(adapter.texture_file(mesh_id),
+                return send_file(adapter.texture_file(image_id),
                                  mimetype='image/jpeg')
             except:
-                abort(404, message="{} is not a textured mesh".format(mesh_id))
+                abort(404, message="{} is not an image".format(image_id))
+
+    api.add_resource(ImageList, api_endpoint + 'images')
+    api.add_resource(Image, api_endpoint + 'images/<string:image_id>')
+    api.add_resource(Texture, api_endpoint + 'textures/<string:image_id>')
 
     return app

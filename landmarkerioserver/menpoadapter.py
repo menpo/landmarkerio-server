@@ -10,7 +10,8 @@ import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
 
 from .utils import load_template
-from .api import MeshLandmarkerIOAdapter, LandmarkerIOAdapter
+from .api import (MeshLandmarkerIOAdapter, LandmarkerIOAdapter,
+                  ImageLandmarkerIOAdapter)
 
 
 def as_jpg_file(image):
@@ -135,3 +136,28 @@ class CachingMeshMenpoAdapter(MenpoAdapterMesh):
 
     def texture_file(self, mesh_id):
         return deepcopy(self.textures[mesh_id])
+
+
+class MenpoAdapterImage(MenpoAdapter, ImageLandmarkerIOAdapter):
+
+    def __init__(self, image_dir, landmark_dir, template_dir):
+        MenpoAdapter.__init__(self, landmark_dir, template_dir)
+        self.image_dir = image_dir
+        print ('images:    {}'.format(image_dir))
+
+    def image_paths(self):
+        return mio.image_paths(p.join(self.image_dir, '*'))
+
+    def image_ids(self):
+        return [p.splitext(p.split(m)[1])[0] for m in self.image_paths()]
+
+    def image_json(self, image_id):
+        img_glob = p.join(self.image_dir, image_id + '.*')
+        # Import image, send W, H
+        img = list(mio.import_images(img_glob))[0]
+        return {'width': img.width,
+                'height': img.height}
+
+    def texture_file(self, image_id):
+        img_glob = p.join(self.image_dir, image_id + '.*')
+        return as_jpg_file(list(mio.import_images(img_glob))[0])

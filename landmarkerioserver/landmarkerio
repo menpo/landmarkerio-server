@@ -3,11 +3,13 @@
 
 import os.path as p
 from landmarkerioserver.api import app_for_mesh_adapter, app_for_image_adapter
-from landmarkerioserver.menpoadapter import MenpoAdapterMesh, CachingMeshMenpoAdapter
+from landmarkerioserver.menpoadapter import (MenpoAdapterMesh,
+                                             CachingMeshMenpoAdapter,
+                                             MenpoAdapterImage)
 import webbrowser
 
 
-def main(model_dir, landmark_dir=None, template_dir=None, cache=False):
+def main(mode, model_dir, landmark_dir=None, template_dir=None, cache=False):
     r"""
 
     """
@@ -22,15 +24,23 @@ def main(model_dir, landmark_dir=None, template_dir=None, cache=False):
         template_dir = p.abspath(p.expanduser(template_dir))
 
     gzip = False  # halves payload, increases server workload
-    dev = False
+    dev = True
 
-    # Build a MenpoAdapter that will serve from the specified directories
-    if cache:
-        adapter = CachingMeshMenpoAdapter(model_dir, landmark_dir, template_dir)
+    if mode == 'image':
+        adapter = MenpoAdapterImage(model_dir, landmark_dir, template_dir)
+        app = app_for_image_adapter(adapter, gzip=gzip, dev=dev)
+    elif mode == 'mesh':
+        # Build a MenpoAdapter that will serve from the specified directories
+        if cache:
+            adapter = CachingMeshMenpoAdapter(model_dir, landmark_dir,
+                                              template_dir)
+        else:
+            adapter = MenpoAdapterMesh(model_dir, landmark_dir, template_dir)
+        app = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
     else:
-        adapter = MenpoAdapterMesh(model_dir, landmark_dir, template_dir)
-    webbrowser.open("http://www.landmarker.io")
-    app = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
+        raise ValueError("first argument must be 'image' or 'mesh'")
+    # webbrowser.open("http://www.landmarker.io")
+    # webbrowser.open("http://localhost:8080")
     app.run()
 
 
@@ -41,7 +51,8 @@ if __name__ == "__main__":
         Serve landmarks and assets for landmarker.io through Menpo.
 
         """)
-    parser.add_argument("path", help="path that will be searched for models")
+    parser.add_argument("mode", help="image or mesh")
+    parser.add_argument("path", help="path that will be searched for assets")
     parser.add_argument("-l", "--landmarks",
                         help="The directory containing the landmarks. "
                              "If None provided taken as path/landmarks")
@@ -52,4 +63,4 @@ if __name__ == "__main__":
                         help="Import all meshes at the start. Faster serving, "
                              "higher server memory usage.")
     ns = parser.parse_args()
-    main(ns.path, ns.landmarks, ns.templates, ns.cache)
+    main(ns.mode, ns.path, ns.landmarks, ns.templates, ns.cache)
