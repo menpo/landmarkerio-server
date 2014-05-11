@@ -120,14 +120,14 @@ def app_for_adapter(adapter, gzip=False, dev=False):
 
     class Landmark(Resource):
 
-        def get(self, mesh_id, lm_id):
+        def get(self, asset_id, lm_id):
             try:
-                return adapter.landmark_json(mesh_id, lm_id)
+                return adapter.landmark_json(asset_id, lm_id)
             except:
-                abort(404, message="{}:{} does not exist".format(mesh_id, lm_id))
+                abort(404, message="{}:{} does not exist".format(asset_id, lm_id))
 
-        def put(self, mesh_id, lm_id):
-            return adapter.save_landmark_json(mesh_id, lm_id, request.json)
+        def put(self, asset_id, lm_id):
+            return adapter.save_landmark_json(asset_id, lm_id, request.json)
 
     class LandmarkList(Resource):
 
@@ -137,8 +137,8 @@ def app_for_adapter(adapter, gzip=False, dev=False):
 
     class LandmarkListForId(Resource):
 
-        def get(self, mesh_id):
-            return adapter.landmark_ids(mesh_id)
+        def get(self, asset_id):
+            return adapter.landmark_ids(asset_id)
 
     class Template(Resource):
 
@@ -157,9 +157,9 @@ def app_for_adapter(adapter, gzip=False, dev=False):
 
     api.add_resource(LandmarkList, api_endpoint + 'landmarks')
     api.add_resource(LandmarkListForId, api_endpoint +
-                     'landmarks/<string:mesh_id>')
+                     'landmarks/<string:asset_id>')
     api.add_resource(Landmark, api_endpoint +
-                     'landmarks/<string:mesh_id>/<string:lm_id>')
+                     'landmarks/<string:asset_id>/<string:lm_id>')
 
     api.add_resource(TemplateList, api_endpoint + 'templates')
     api.add_resource(Template, api_endpoint + 'templates/<string:lm_id>')

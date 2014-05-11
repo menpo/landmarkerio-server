@@ -29,13 +29,13 @@ class MenpoAdapter(LandmarkerIOAdapter):
         print ('landmarks: {}'.format(landmark_dir))
         print ('templates: {}'.format(template_dir))
 
-    def landmark_fp(self, model_id, lm_id):
-        return p.join(self.landmark_dir, model_id, lm_id + '.json')
+    def landmark_fp(self, asset_id, lm_id):
+        return p.join(self.landmark_dir, asset_id, lm_id + '.json')
 
-    def landmark_paths(self, mesh_id=None):
-        if mesh_id is None:
-            mesh_id = '*'
-        g = glob.glob(p.join(self.landmark_dir, mesh_id, '*'))
+    def landmark_paths(self, asset_id=None):
+        if asset_id is None:
+            asset_id = '*'
+        g = glob.glob(p.join(self.landmark_dir, asset_id, '*'))
         return filter(lambda f: p.isfile(f) and
                                 p.splitext(f)[-1] == '.json', g)
 
@@ -49,23 +49,23 @@ class MenpoAdapter(LandmarkerIOAdapter):
             mapping[lm_id].append(lm_set)
         return mapping
 
-    def landmark_ids(self, mesh_id):
-        landmark_files = self.landmark_paths(mesh_id=mesh_id)
+    def landmark_ids(self, asset_id):
+        landmark_files = self.landmark_paths(asset_id=asset_id)
         return [p.splitext(p.split(f)[-1])[0] for f in landmark_files]
 
-    def landmark_json(self, mesh_id, lm_id):
-        fp = self.landmark_fp(mesh_id, lm_id)
+    def landmark_json(self, asset_id, lm_id):
+        fp = self.landmark_fp(asset_id, lm_id)
         if not p.isfile(fp):
             raise IOError
         with open(fp, 'rb') as f:
             lm = json.load(f)
             return lm
 
-    def save_landmark_json(self, mesh_id, lm_id, lm_json):
-        subject_dir = p.join(self.landmark_dir, mesh_id)
+    def save_landmark_json(self, asset_id, lm_id, lm_json):
+        subject_dir = p.join(self.landmark_dir, asset_id)
         if not p.isdir(subject_dir):
             os.mkdir(subject_dir)
-        fp = self.landmark_fp(mesh_id, lm_id)
+        fp = self.landmark_fp(asset_id, lm_id)
         with open(fp, 'wb') as f:
             json.dump(lm_json, f, sort_keys=True, indent=4,
                       separators=(',', ': '))
