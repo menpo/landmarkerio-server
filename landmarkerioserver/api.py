@@ -120,7 +120,10 @@ def app_for_adapter(adapter, gzip=False, dev=False):
         # in development mode, accept CORS from anyone
         origin = '*'
     api.decorators = [cors.crossdomain(origin=origin,
-                                       headers=['Content-Type'])]
+                                       headers=['Origin', 'X-Requested-With',
+                                                'Content-Type', 'Accept'],
+                                       methods=['HEAD', 'GET', 'POST', 'PATCH',
+                                                'PUT', 'OPTIONS', 'DELETE'])]
 
     class Landmark(Resource):
 
@@ -128,10 +131,14 @@ def app_for_adapter(adapter, gzip=False, dev=False):
             try:
                 return adapter.landmark_json(asset_id, lm_id)
             except:
-                abort(404, message="{}:{} does not exist".format(asset_id, lm_id))
+                return abort(404, message="{}:{} does not exist".format(asset_id, lm_id))
 
         def put(self, asset_id, lm_id):
             return adapter.save_landmark_json(asset_id, lm_id, request.json)
+
+        # Need this here to enable CORS put! Not sure why...
+        def options(self, asset_id, lm_id):
+            pass
 
     class LandmarkList(Resource):
 
@@ -150,7 +157,7 @@ def app_for_adapter(adapter, gzip=False, dev=False):
             try:
                 return adapter.template_json(lm_id)
             except:
-                abort(404, message="{} template not exist".format(lm_id))
+                return abort(404, message="{} template not exist".format(lm_id))
 
     class TemplateList(Resource):
 
@@ -198,7 +205,7 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
             try:
                 return adapter.mesh_json(mesh_id)
             except:
-                abort(404, message="{} is not an available mesh".format(mesh_id))
+                return abort(404, message="{} is not an available mesh".format(mesh_id))
 
     class MeshList(Resource):
 
@@ -212,7 +219,7 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
                 return send_file(adapter.texture_file(mesh_id),
                                  mimetype='image/jpeg')
             except:
-                abort(404, message="{} is not a textured mesh".format(mesh_id))
+                return abort(404, message="{} is not a textured mesh".format(mesh_id))
 
     class TextureList(Resource):
 
@@ -255,8 +262,8 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
             try:
                 return adapter.image_json(image_id)
             except:
-                abort(404, message="{} is not an available "
-                                   "image".format(image_id))
+                return abort(404, message="{} is not an available "
+                                          "image".format(image_id))
 
     class ImageList(Resource):
 
@@ -270,7 +277,7 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
                 return send_file(adapter.texture_file(image_id),
                                  mimetype='image/jpeg')
             except:
-                abort(404, message="{} is not an image".format(image_id))
+                return abort(404, message="{} is not an image".format(image_id))
 
     class Thumbnail(Resource):
 
@@ -279,7 +286,7 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
                 return send_file(adapter.thumbnail_file(image_id),
                                  mimetype='image/jpeg')
             except:
-                abort(404, message="{} is not an image".format(image_id))
+                return abort(404, message="{} is not an image".format(image_id))
 
     api.add_resource(ImageList, api_endpoint + 'images')
     api.add_resource(Image, api_endpoint + 'images/<string:image_id>')
