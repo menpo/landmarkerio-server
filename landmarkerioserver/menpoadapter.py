@@ -1,3 +1,4 @@
+import abc
 from copy import deepcopy
 from collections import defaultdict
 import glob
@@ -40,6 +41,10 @@ class MenpoAdapter(LandmarkerIOAdapter):
         self.template_dir = template_dir
         print ('landmarks: {}'.format(landmark_dir))
         print ('templates: {}'.format(template_dir))
+
+    @abc.abstractproperty
+    def n_dims(self):
+        pass
 
     def landmark_fp(self, asset_id, lm_id):
         return p.join(self.landmark_dir, asset_id, lm_id + '.json')
@@ -90,7 +95,7 @@ class MenpoAdapter(LandmarkerIOAdapter):
 
     def template_json(self, lm_id):
         fp = p.join(self.template_dir, lm_id + '.lmt')
-        return load_template(fp)
+        return load_template(fp, self.n_dims)
 
 
 class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
@@ -99,6 +104,10 @@ class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
         MenpoAdapter.__init__(self, landmark_dir, template_dir)
         self.model_dir = model_dir
         print ('models:    {}'.format(model_dir))
+
+    @property
+    def n_dims(self):
+        return 3
 
     def mesh_paths(self):
         return mio.mesh_paths(p.join(self.model_dir, '*'))
@@ -155,6 +164,10 @@ class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
         MenpoAdapter.__init__(self, landmark_dir, template_dir)
         self.image_dir = image_dir
         print ('images:    {}'.format(image_dir))
+
+    @property
+    def n_dims(self):
+        return 2
 
     def image_paths(self):
         return mio.image_paths(p.join(self.image_dir, '*'))

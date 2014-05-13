@@ -18,24 +18,23 @@ def parse_group(group):
     return Group(label, n, index)
 
 
-def group_to_json(group):
+def group_to_json(group, n_dims):
     group_json = {}
-    lms = [{'point': None}] * group.n
+    lms = [{'point': [None] * n_dims}] * group.n
     group_json["landmarks"] = lms
     group_json["connectivity"] = group.index
     return group_json
 
 
-def groups_to_json(groups):
+def groups_to_json(groups, n_dims):
     lm_json = {'version': 1, 'groups': {}}
     for g in groups:
-        lm_json['groups'][g.label] = group_to_json(g)
+        lm_json['groups'][g.label] = group_to_json(g, n_dims)
     return lm_json
 
 
-def load_template(path):
+def load_template(path, n_dims):
     with open(path, 'rb') as f:
         ta = f.read().strip().split('\n\n')
-    print ta
     groups = [parse_group(g) for g in ta]
-    return groups_to_json(groups)
+    return groups_to_json(groups, n_dims)
