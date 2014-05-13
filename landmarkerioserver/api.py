@@ -38,6 +38,10 @@ class LandmarkerIOAdapter(object):
     def template_json(self, lm_id):
         pass
 
+    @abc.abstractmethod
+    def thumbnail_file(self, image_id):
+        pass
+
 
 class MeshLandmarkerIOAdapter(LandmarkerIOAdapter):
     r"""
@@ -80,10 +84,6 @@ class ImageLandmarkerIOAdapter(LandmarkerIOAdapter):
     def texture_file(self, image_id):
         pass
 
-    @abc.abstractmethod
-    def thumbnail_file(self, image_id):
-        pass
-
 
 def app_for_adapter(adapter, gzip=False, dev=False):
     r"""
@@ -100,6 +100,11 @@ def app_for_adapter(adapter, gzip=False, dev=False):
     gzip: Boolean, optional
         If True, responses will be gzipped before being sent to the client.
         Higher workload for the server, smaller payload to the client.
+
+        Default: False
+
+    dev: Boolean, optional
+        If True, listen to anyone for CORS.
 
         Default: False
 
@@ -164,6 +169,16 @@ def app_for_adapter(adapter, gzip=False, dev=False):
         def get(self):
             return adapter.templates()
 
+    class Thumbnail(Resource):
+
+        def get(self, asset_id):
+            try:
+                return send_file(adapter.thumbnail_file(asset_id),
+                                 mimetype='image/jpeg')
+            except:
+                return abort(404, message="{} is not an asset".format(asset_id))
+
+
     api_endpoint = '/api/v1/'
 
     api.add_resource(LandmarkList, api_endpoint + 'landmarks')
@@ -174,6 +189,7 @@ def app_for_adapter(adapter, gzip=False, dev=False):
 
     api.add_resource(TemplateList, api_endpoint + 'templates')
     api.add_resource(Template, api_endpoint + 'templates/<string:lm_id>')
+    api.add_resource(Thumbnail, api_endpoint + 'thumbnails/<string:asset_id>')
 
     return api, app, api_endpoint
 
@@ -279,18 +295,8 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
             except:
                 return abort(404, message="{} is not an image".format(image_id))
 
-    class Thumbnail(Resource):
-
-        def get(self, image_id):
-            try:
-                return send_file(adapter.thumbnail_file(image_id),
-                                 mimetype='image/jpeg')
-            except:
-                return abort(404, message="{} is not an image".format(image_id))
-
     api.add_resource(ImageList, api_endpoint + 'images')
     api.add_resource(Image, api_endpoint + 'images/<string:image_id>')
     api.add_resource(Texture, api_endpoint + 'textures/<string:image_id>')
-    api.add_resource(Thumbnail, api_endpoint + 'thumbnails/<string:image_id>')
 
     return app

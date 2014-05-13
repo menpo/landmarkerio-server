@@ -9,6 +9,7 @@ import StringIO
 
 import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
+import menpo
 
 from .utils import load_template
 from .api import (MeshLandmarkerIOAdapter, LandmarkerIOAdapter,
@@ -32,6 +33,8 @@ def as_jpg_thumbnail_file(img, width=640):
     ips.save(output, quality=20, format='jpeg')
     output.seek(0)
     return output
+
+blank_tnail = menpo.image.Image.blank((16, 16), n_channels=3)
 
 
 class MenpoAdapter(LandmarkerIOAdapter):
@@ -129,6 +132,14 @@ class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
         img_glob = p.join(self.model_dir, mesh_id + '.*')
         return as_jpg_file(list(mio.import_images(img_glob))[0])
 
+    def thumbnail_file(self, mesh_id):
+        img_glob = p.join(self.model_dir, mesh_id + '.*')
+        imgs = list(mio.import_images(img_glob))
+        if len(imgs) == 0:
+            return as_jpg_thumbnail_file(blank_tnail)
+        else:
+            return as_jpg_thumbnail_file(imgs[0])
+
 
 class CachingMeshMenpoAdapter(MeshMenpoAdapter):
 
@@ -137,11 +148,15 @@ class CachingMeshMenpoAdapter(MeshMenpoAdapter):
         print('Caching meshes and textures...')
         self.meshes = {}
         self.textures = {}
+        self.thumbnails = {}
         for mesh in mio.import_meshes(p.join(self.model_dir, '*')):
             mesh_id = mesh.ioinfo.filename
             self.meshes[mesh_id] = mesh.tojson()
             if isinstance(mesh, TexturedTriMesh):
                 self.textures[mesh_id] = as_jpg_file(mesh.texture)
+                self.thumbnails[mesh_id] = as_jpg_thumbnail_file(mesh.texture)
+            else:
+                self.thumbnails[mesh_id] = as_jpg_thumbnail_file(blank_tnail)
         print(' - {} meshes imported.'.format(len(self.meshes)))
         print(' - {} meshes are textured.'.format(len(self.textures)))
 
@@ -156,6 +171,9 @@ class CachingMeshMenpoAdapter(MeshMenpoAdapter):
 
     def texture_file(self, mesh_id):
         return deepcopy(self.textures[mesh_id])
+
+    def thumbnail_file(self, mesh_id):
+        return deepcopy(self.thumbnails[mesh_id])
 
 
 class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
