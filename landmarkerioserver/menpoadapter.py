@@ -22,6 +22,17 @@ def as_jpg_file(image):
     return output
 
 
+def as_jpg_thumbnail_file(img, width=640):
+    ip = img.as_PILImage()
+    w, h = ip.size
+    h2w = h * 1. / w
+    ips = ip.resize((width, int(h2w * width)))
+    output = StringIO.StringIO()
+    ips.save(output, quality=20, format='jpeg')
+    output.seek(0)
+    return output
+
+
 class MenpoAdapter(LandmarkerIOAdapter):
 
     def __init__(self, landmark_dir, template_dir):
@@ -82,7 +93,7 @@ class MenpoAdapter(LandmarkerIOAdapter):
         return load_template(fp)
 
 
-class MenpoAdapterMesh(MenpoAdapter, MeshLandmarkerIOAdapter):
+class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
 
     def __init__(self, model_dir, landmark_dir, template_dir):
         MenpoAdapter.__init__(self, landmark_dir, template_dir)
@@ -110,10 +121,10 @@ class MenpoAdapterMesh(MenpoAdapter, MeshLandmarkerIOAdapter):
         return as_jpg_file(list(mio.import_images(img_glob))[0])
 
 
-class CachingMeshMenpoAdapter(MenpoAdapterMesh):
+class CachingMeshMenpoAdapter(MeshMenpoAdapter):
 
     def __init__(self, model_dir, landmark_dir, template_dir):
-        MenpoAdapterMesh.__init__(self, model_dir, landmark_dir, template_dir)
+        MeshMenpoAdapter.__init__(self, model_dir, landmark_dir, template_dir)
         print('Caching meshes and textures...')
         self.meshes = {}
         self.textures = {}
@@ -138,7 +149,7 @@ class CachingMeshMenpoAdapter(MenpoAdapterMesh):
         return deepcopy(self.textures[mesh_id])
 
 
-class MenpoAdapterImage(MenpoAdapter, ImageLandmarkerIOAdapter):
+class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
 
     def __init__(self, image_dir, landmark_dir, template_dir):
         MenpoAdapter.__init__(self, landmark_dir, template_dir)
@@ -161,3 +172,34 @@ class MenpoAdapterImage(MenpoAdapter, ImageLandmarkerIOAdapter):
     def texture_file(self, image_id):
         img_glob = p.join(self.image_dir, image_id + '.*')
         return as_jpg_file(list(mio.import_images(img_glob))[0])
+
+    def thumbnail_file(self, image_id):
+        img_glob = p.join(self.image_dir, image_id + '.*')
+        return as_jpg_thumbnail_file(list(mio.import_images(img_glob))[0])
+
+
+class CachingImageMenpoAdapter(ImageMenpoAdapter):
+
+    def __init__(self, image_dir, landmark_dir, template_dir):
+        ImageMenpoAdapter.__init__(self, image_dir, landmark_dir, template_dir)
+        print('Caching images and thumbnails...')
+        self.images, self.textures, self.thumbnails = {}, {}, {}
+        for img in mio.import_images(p.join(self.image_dir, '*')):
+            image_id = img.ioinfo.filename
+            self.images[image_id] = {'width': img.width,
+                                     'height': img.height}
+            self.textures[image_id] = as_jpg_file(img)
+            self.thumbnails[image_id] = as_jpg_thumbnail_file(img)
+        print(' - {} images imported.'.format(len(self.images)))
+
+    def image_ids(self):
+        return list(self.images)
+
+    def image_json(self, image_id):
+        return self.images[image_id]
+
+    def texture_file(self, image_id):
+        return deepcopy(self.textures[image_id])
+
+    def thumbnail_file(self, image_id):
+        return deepcopy(self.thumbnails[image_id])

@@ -3,23 +3,24 @@
 
 import os.path as p
 from landmarkerioserver.api import app_for_mesh_adapter, app_for_image_adapter
-from landmarkerioserver.menpoadapter import (MenpoAdapterMesh,
+from landmarkerioserver.menpoadapter import (MeshMenpoAdapter,
                                              CachingMeshMenpoAdapter,
-                                             MenpoAdapterImage)
+                                             ImageMenpoAdapter,
+                                             CachingImageMenpoAdapter)
 import webbrowser
 
 
-def main(mode, model_dir, landmark_dir=None, template_dir=None, cache=False):
+def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False):
     r"""
 
     """
-    model_dir = p.abspath(p.expanduser(model_dir))
+    asset_dir = p.abspath(p.expanduser(asset_dir))
     if landmark_dir is None:
-        landmark_dir = p.join(model_dir, 'landmarks')
+        landmark_dir = p.join(asset_dir, 'landmarks')
     else:
         landmark_dir = p.abspath(p.expanduser(landmark_dir))
     if template_dir is None:
-        template_dir = p.join(model_dir, 'template')
+        template_dir = p.join(asset_dir, 'template')
     else:
         template_dir = p.abspath(p.expanduser(template_dir))
 
@@ -27,15 +28,18 @@ def main(mode, model_dir, landmark_dir=None, template_dir=None, cache=False):
     dev = True
 
     if mode == 'image':
-        adapter = MenpoAdapterImage(model_dir, landmark_dir, template_dir)
+        if cache:
+            adapter = CachingImageMenpoAdapter(asset_dir, landmark_dir,
+                                               template_dir)
+        else:
+            adapter = ImageMenpoAdapter(asset_dir, landmark_dir, template_dir)
         app = app_for_image_adapter(adapter, gzip=gzip, dev=dev)
     elif mode == 'mesh':
-        # Build a MenpoAdapter that will serve from the specified directories
         if cache:
-            adapter = CachingMeshMenpoAdapter(model_dir, landmark_dir,
+            adapter = CachingMeshMenpoAdapter(asset_dir, landmark_dir,
                                               template_dir)
         else:
-            adapter = MenpoAdapterMesh(model_dir, landmark_dir, template_dir)
+            adapter = MeshMenpoAdapter(asset_dir, landmark_dir, template_dir)
         app = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
     else:
         raise ValueError("first argument must be 'image' or 'mesh'")

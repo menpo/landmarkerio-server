@@ -80,6 +80,10 @@ class ImageLandmarkerIOAdapter(LandmarkerIOAdapter):
     def texture_file(self, image_id):
         pass
 
+    @abc.abstractmethod
+    def thumbnail_file(self, image_id):
+        pass
+
 
 def app_for_adapter(adapter, gzip=False, dev=False):
     r"""
@@ -268,8 +272,18 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
             except:
                 abort(404, message="{} is not an image".format(image_id))
 
+    class Thumbnail(Resource):
+
+        def get(self, image_id):
+            try:
+                return send_file(adapter.thumbnail_file(image_id),
+                                 mimetype='image/jpeg')
+            except:
+                abort(404, message="{} is not an image".format(image_id))
+
     api.add_resource(ImageList, api_endpoint + 'images')
     api.add_resource(Image, api_endpoint + 'images/<string:image_id>')
     api.add_resource(Texture, api_endpoint + 'textures/<string:image_id>')
+    api.add_resource(Thumbnail, api_endpoint + 'thumbnails/<string:image_id>')
 
     return app
