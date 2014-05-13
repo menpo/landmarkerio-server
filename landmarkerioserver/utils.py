@@ -21,15 +21,16 @@ def parse_group(group):
 def group_to_json(group, n_dims):
     group_json = {}
     lms = [{'point': [None] * n_dims}] * group.n
-    group_json["landmarks"] = lms
-    group_json["connectivity"] = group.index
+    group_json['landmarks'] = lms
+    group_json['connectivity'] = group.index
+    group_json['label'] = group.label
     return group_json
 
 
 def groups_to_json(groups, n_dims):
-    lm_json = {'version': 1, 'groups': {}}
+    lm_json = {'version': 1, 'groups': []}
     for g in groups:
-        lm_json['groups'][g.label] = group_to_json(g, n_dims)
+        lm_json['groups'].append(group_to_json(g, n_dims))
     return lm_json
 
 
