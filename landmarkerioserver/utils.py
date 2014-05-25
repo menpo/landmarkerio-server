@@ -1,17 +1,27 @@
 import itertools
 from collections import namedtuple
 
+
 Group = namedtuple('Group', ['label', 'n', 'index'])
 
 
 def parse_group(group):
-    x = group.split('\n')
+    # split on \n and strip left and right whitespace.
+    x = [l.strip() for l in group.split('\n')]
     label, n_str = x[0].split(' ')
     n = int(n_str)
     index_str = x[1:]
     if len(index_str) == 0:
         return Group(label, n, [])
-    index = [[int(j) for j in i.split(' ')] for i in index_str]
+    index = []
+    for i in index_str:
+        if ':' in i:
+            # User is providing a slice
+            start, end = (int(x) for x in i.split(':'))
+            index.extend([x, x+1] for x in xrange(start, end))
+        else:
+            # Just a standard pair of numbers
+            index.append([int(j) for j in i.split(' ')])
     indexes = set(itertools.chain.from_iterable(index))
     if min(indexes) < 0 or max(indexes) > n:
         raise ValueError("invalid connectivity")
