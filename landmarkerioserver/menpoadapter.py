@@ -91,7 +91,7 @@ class MenpoAdapter(LandmarkerIOAdapter):
                       separators=(',', ': '))
 
     def templates(self):
-        template_paths = glob.glob(p.join(self.template_dir, '*.lmt'))
+        template_paths = glob.glob(p.join(self.template_dir, '*.txt'))
         print self.template_dir
         print template_paths
         return [p.splitext(p.split(t)[-1])[0] for t in template_paths]
