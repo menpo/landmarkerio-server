@@ -15,14 +15,11 @@ def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False):
 
     """
     asset_dir = p.abspath(p.expanduser(asset_dir))
+
     if landmark_dir is None:
         landmark_dir = p.join(asset_dir, 'landmarks')
     else:
         landmark_dir = p.abspath(p.expanduser(landmark_dir))
-    if template_dir is None:
-        template_dir = p.join(asset_dir, 'template')
-    else:
-        template_dir = p.abspath(p.expanduser(template_dir))
 
     gzip = False  # halves payload, increases server workload
     dev = True

@@ -39,9 +39,17 @@ blank_tnail = menpo.image.Image.blank((16, 16), n_channels=3)
 
 class MenpoAdapter(LandmarkerIOAdapter):
 
-    def __init__(self, landmark_dir, template_dir):
-        self.landmark_dir = landmark_dir
-        self.template_dir = template_dir
+    def __init__(self, landmark_dir, template_dir=None):
+        self.landmark_dir = p.abspath(p.expanduser(landmark_dir))
+        if template_dir is None:
+            # try the user folder
+            user_templates = p.expanduser(p.join('~', '.lmiotemplates'))
+            if p.isdir(user_templates):
+                template_dir = user_templates
+            else:
+                raise ValueError("No template dir provided and "
+                                 "{} doesn't exist".format(user_templates))
+        self.template_dir = p.abspath(p.expanduser(template_dir))
         print ('landmarks: {}'.format(landmark_dir))
         print ('templates: {}'.format(template_dir))
 
@@ -103,8 +111,8 @@ class MenpoAdapter(LandmarkerIOAdapter):
 
 class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
 
-    def __init__(self, model_dir, landmark_dir, template_dir):
-        MenpoAdapter.__init__(self, landmark_dir, template_dir)
+    def __init__(self, model_dir, landmark_dir, template_dir=None):
+        MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir)
         self.model_dir = model_dir
         print ('models:    {}'.format(model_dir))
 
@@ -178,8 +186,8 @@ class CachingMeshMenpoAdapter(MeshMenpoAdapter):
 
 class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
 
-    def __init__(self, image_dir, landmark_dir, template_dir):
-        MenpoAdapter.__init__(self, landmark_dir, template_dir)
+    def __init__(self, image_dir, landmark_dir, template_dir=None):
+        MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir)
         self.image_dir = image_dir
         print ('images:    {}'.format(image_dir))
 
@@ -211,8 +219,9 @@ class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
 
 class CachingImageMenpoAdapter(ImageMenpoAdapter):
 
-    def __init__(self, image_dir, landmark_dir, template_dir):
-        ImageMenpoAdapter.__init__(self, image_dir, landmark_dir, template_dir)
+    def __init__(self, image_dir, landmark_dir, template_dir=None):
+        ImageMenpoAdapter.__init__(self, image_dir, landmark_dir,
+                                   template_dir=template_dir)
         print('Caching images and thumbnails...')
         self.images, self.textures, self.thumbnails = {}, {}, {}
         for img in mio.import_images(p.join(self.image_dir, '*')):
