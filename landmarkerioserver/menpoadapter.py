@@ -105,7 +105,7 @@ class MenpoAdapter(LandmarkerIOAdapter):
         return [p.splitext(p.split(t)[-1])[0] for t in template_paths]
 
     def template_json(self, lm_id):
-        fp = p.join(self.template_dir, lm_id + '.lmt')
+        fp = p.join(self.template_dir, lm_id + '.txt')
         return load_template(fp, self.n_dims)
 
 
