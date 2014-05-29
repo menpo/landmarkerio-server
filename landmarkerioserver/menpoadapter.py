@@ -41,6 +41,9 @@ class MenpoAdapter(LandmarkerIOAdapter):
 
     def __init__(self, landmark_dir, template_dir=None):
         self.landmark_dir = p.abspath(p.expanduser(landmark_dir))
+        if not p.isdir(self.landmark_dir):
+            print("Warning the landmark dir does not exist - creating...")
+            os.mkdir(self.landmark_dir)
         if template_dir is None:
             # try the user folder
             user_templates = p.expanduser(p.join('~', '.lmiotemplates'))

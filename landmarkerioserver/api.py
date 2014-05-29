@@ -139,7 +139,10 @@ def app_for_adapter(adapter, gzip=False, dev=False):
                 return abort(404, message="{}:{} does not exist".format(asset_id, lm_id))
 
         def put(self, asset_id, lm_id):
-            return adapter.save_landmark_json(asset_id, lm_id, request.json)
+            try:
+                return adapter.save_landmark_json(asset_id, lm_id, request.json)
+            except:
+                return abort(409, message="{}:{} unable to save".format(asset_id, lm_id))
 
         # Need this here to enable CORS put! Not sure why...
         def options(self, asset_id, lm_id):
