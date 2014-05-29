@@ -2,7 +2,7 @@ from setuptools import setup
 import os.path as p
 
 setup(name='landmarkerio-server',
-      version='0.0.5',
+      version='0.0.6',
       description='Menpo-based server for www.landmarker.io',
       author='James Booth',
       author_email='james.booth08@imperial.ac.uk',
