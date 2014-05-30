@@ -2,7 +2,7 @@ from setuptools import setup
 import os.path as p
 
 setup(name='landmarkerio-server',
-      version='0.0.6',
+      version='0.0.7',
       description='Menpo-based server for www.landmarker.io',
       author='James Booth',
       author_email='james.booth08@imperial.ac.uk',
@@ -19,6 +19,7 @@ setup(name='landmarkerio-server',
       packages=['landmarkerioserver'],
       install_requires=['menpo>=0.2.5',
                         'Flask>=0.10.1',
-                        'Flask-RESTful>=0.2.11'],
+                        'Flask-RESTful>=0.2.11',
+                        'Flask-Compress>=1.0.2'],
       scripts=[p.join('landmarkerioserver', 'landmarkerio')]
       )
