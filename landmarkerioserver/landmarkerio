@@ -10,7 +10,8 @@ from landmarkerioserver.menpoadapter import (MeshMenpoAdapter,
 import webbrowser
 
 
-def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False):
+def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False,
+         gzip=False, dev=False):
     r"""
 
     """
@@ -20,10 +21,6 @@ def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False):
         landmark_dir = p.join(asset_dir, 'landmarks')
     else:
         landmark_dir = p.abspath(p.expanduser(landmark_dir))
-
-    gzip = False  # halves payload, increases server workload
-    dev = True
-
     if mode == 'image':
         if cache:
             adapter = CachingImageMenpoAdapter(asset_dir, landmark_dir,
@@ -40,8 +37,8 @@ def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False):
         app = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
     else:
         raise ValueError("first argument must be 'image' or 'mesh'")
-    # webbrowser.open("http://www.landmarker.io")
-    # webbrowser.open("http://localhost:8080")
+    if not dev:
+        webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
     app.run()
 
 
@@ -63,5 +60,12 @@ if __name__ == "__main__":
     parser.add_argument("--cache", action='store_true',
                         help="Import all meshes at the start. Faster serving, "
                              "higher server memory usage.")
+    parser.add_argument("--gzip", action='store_true',
+                        help="Dynamically compress meshes before sending."
+                             " Higher server CPU, smaller payload.")
+    parser.add_argument("--dev", action='store_true',
+                        help="Listen to all CORS requests. Useful for "
+                             "development on localhost.")
     ns = parser.parse_args()
-    main(ns.mode, ns.path, ns.landmarks, ns.templates, ns.cache)
+    main(ns.mode, ns.path, landmark_dir=ns.landmarks,
+         template_dir=ns.templates, cache=ns.cache, gzip=ns.gzip, dev=ns.dev)
