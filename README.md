@@ -64,7 +64,7 @@ You get help on the tool just as you would expect
 
 Templates restrict the set of allowed annotations and give the annotations 
 semantic meaning. The user of the server has full control over what
-annotations the user of landmarker.io should fill in by declaring *templates*.
+annotations the user of landmarker.io should complete by declaring *templates*.
 A template file is simple a `.txt` file. The filename is the name of the template.
 An example template is provided below.
 
@@ -88,6 +88,7 @@ chin 1
 
 ```
 We now annotate the file to explain the syntax:
+
 **`face.txt`**
 ```
 # This template is called 'face'. All saved landmarks
