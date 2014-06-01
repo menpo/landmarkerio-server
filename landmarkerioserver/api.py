@@ -43,29 +43,6 @@ class LandmarkerIOAdapter(object):
         pass
 
 
-class MeshLandmarkerIOAdapter(LandmarkerIOAdapter):
-    r"""
-    Abstract definition of an adapter that serves mesh assets along with
-    landmarks and templates.
-    """
-
-    @abc.abstractmethod
-    def mesh_ids(self):
-        pass
-
-    @abc.abstractmethod
-    def mesh_json(self, mesh_id):
-        pass
-
-    @abc.abstractmethod
-    def textured_mesh_ids(self):
-        pass
-
-    @abc.abstractmethod
-    def texture_file(self, mesh_id):
-        pass
-
-
 class ImageLandmarkerIOAdapter(LandmarkerIOAdapter):
     r"""
     Abstract definition of an adapter that serves image assets along with
@@ -82,6 +59,21 @@ class ImageLandmarkerIOAdapter(LandmarkerIOAdapter):
 
     @abc.abstractmethod
     def texture_file(self, image_id):
+        pass
+
+
+class MeshLandmarkerIOAdapter(ImageLandmarkerIOAdapter):
+    r"""
+    Abstract definition of an adapter that serves mesh assets along with
+    landmarks and templates.
+    """
+
+    @abc.abstractmethod
+    def mesh_ids(self):
+        pass
+
+    @abc.abstractmethod
+    def mesh_json(self, mesh_id):
         pass
 
 
@@ -197,63 +189,6 @@ def app_for_adapter(adapter, gzip=False, dev=False):
     return api, app, api_endpoint
 
 
-def app_for_mesh_adapter(adapter, gzip=False, dev=False):
-    r"""
-    Generate a Flask App that will serve images, landmarks and templates to
-    landmarker.io
-
-    Parameters
-    ----------
-
-    adapter: :class:`MeshLandmarkerIOAdapter`
-        Concrete implementation of the Image adapter. Will be queried for
-        all data to pass to landmarker.io.
-
-    gzip: Boolean, optional
-        If True, responses will be gzipped before being sent to the client.
-        Higher workload for the server, smaller payload to the client.
-
-        Default: False
-
-    """
-    api, app, api_endpoint = app_for_adapter(adapter, gzip=gzip, dev=dev)
-
-    class Mesh(Resource):
-
-        def get(self, mesh_id):
-            try:
-                return adapter.mesh_json(mesh_id)
-            except:
-                return abort(404, message="{} is not an available mesh".format(mesh_id))
-
-    class MeshList(Resource):
-
-        def get(self):
-            return adapter.mesh_ids()
-
-    class Texture(Resource):
-
-        def get(self, mesh_id):
-            try:
-                return send_file(adapter.texture_file(mesh_id),
-                                 mimetype='image/jpeg')
-            except:
-                return abort(404, message="{} is not a textured mesh".format(mesh_id))
-
-    class TextureList(Resource):
-
-        def get(self):
-            return adapter.textured_mesh_ids()
-
-    api.add_resource(MeshList, api_endpoint + 'meshes')
-    api.add_resource(Mesh, api_endpoint + 'meshes/<string:mesh_id>')
-
-    api.add_resource(TextureList, api_endpoint + 'textures')
-    api.add_resource(Texture, api_endpoint + 'textures/<string:mesh_id>')
-
-    return app
-
-
 def app_for_image_adapter(adapter, gzip=False, dev=False):
     r"""
     Generate a Flask App that will serve images, landmarks and templates to
@@ -302,4 +237,46 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
     api.add_resource(Image, api_endpoint + 'images/<string:image_id>')
     api.add_resource(Texture, api_endpoint + 'textures/<string:image_id>')
 
-    return app
+    return api, app, api_endpoint
+
+
+def app_for_mesh_adapter(adapter, gzip=False, dev=False):
+    r"""
+    Generate a Flask App that will serve images, landmarks and templates to
+    landmarker.io
+
+    Parameters
+    ----------
+
+    adapter: :class:`MeshLandmarkerIOAdapter`
+        Concrete implementation of the Image adapter. Will be queried for
+        all data to pass to landmarker.io.
+
+    gzip: Boolean, optional
+        If True, responses will be gzipped before being sent to the client.
+        Higher workload for the server, smaller payload to the client.
+
+        Default: False
+
+    """
+    api, app, api_endpoint = app_for_image_adapter(adapter, gzip=gzip,
+                                                   dev=dev)
+
+    class Mesh(Resource):
+
+        def get(self, mesh_id):
+            try:
+                return adapter.mesh_json(mesh_id)
+            except:
+                return abort(404, message="{} is not an available "
+                                          "mesh".format(mesh_id))
+
+    class MeshList(Resource):
+
+        def get(self):
+            return adapter.mesh_ids()
+
+    api.add_resource(MeshList, api_endpoint + 'meshes')
+    api.add_resource(Mesh, api_endpoint + 'meshes/<string:mesh_id>')
+
+    return api, app, api_endpoint

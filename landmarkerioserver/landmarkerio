@@ -27,14 +27,14 @@ def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False,
                                                template_dir)
         else:
             adapter = ImageMenpoAdapter(asset_dir, landmark_dir, template_dir)
-        app = app_for_image_adapter(adapter, gzip=gzip, dev=dev)
+        _, app, _ = app_for_image_adapter(adapter, gzip=gzip, dev=dev)
     elif mode == 'mesh':
         if cache:
             adapter = CachingMeshMenpoAdapter(asset_dir, landmark_dir,
                                               template_dir)
         else:
             adapter = MeshMenpoAdapter(asset_dir, landmark_dir, template_dir)
-        app = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
+        _, app, _ = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
     else:
         raise ValueError("first argument must be 'image' or 'mesh'")
     if not dev:

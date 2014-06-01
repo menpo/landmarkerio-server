@@ -112,81 +112,6 @@ class MenpoAdapter(LandmarkerIOAdapter):
         return load_template(fp, self.n_dims)
 
 
-class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
-
-    def __init__(self, model_dir, landmark_dir, template_dir=None):
-        MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir)
-        self.model_dir = model_dir
-        print ('models:    {}'.format(model_dir))
-
-    @property
-    def n_dims(self):
-        return 3
-
-    def mesh_paths(self):
-        return mio.mesh_paths(p.join(self.model_dir, '*'))
-
-    def texture_paths(self):
-        return mio.image_paths(p.join(self.model_dir, '*'))
-
-    def mesh_ids(self):
-        return [p.splitext(p.split(m)[1])[0] for m in self.mesh_paths()]
-
-    def mesh_json(self, mesh_id):
-        mesh_glob = p.join(self.model_dir, mesh_id + '.*')
-        return list(mio.import_meshes(mesh_glob))[0].tojson()
-
-    def textured_mesh_ids(self):
-        return [p.splitext(p.split(t)[1])[0] for t in self.texture_paths()]
-
-    def texture_file(self, mesh_id):
-        img_glob = p.join(self.model_dir, mesh_id + '.*')
-        return as_jpg_file(list(mio.import_images(img_glob))[0])
-
-    def thumbnail_file(self, mesh_id):
-        img_glob = p.join(self.model_dir, mesh_id + '.*')
-        imgs = list(mio.import_images(img_glob))
-        if len(imgs) == 0:
-            return as_jpg_thumbnail_file(blank_tnail)
-        else:
-            return as_jpg_thumbnail_file(imgs[0])
-
-
-class CachingMeshMenpoAdapter(MeshMenpoAdapter):
-
-    def __init__(self, model_dir, landmark_dir, template_dir):
-        MeshMenpoAdapter.__init__(self, model_dir, landmark_dir, template_dir)
-        print('Caching meshes and textures...')
-        self.meshes = {}
-        self.textures = {}
-        self.thumbnails = {}
-        for mesh in mio.import_meshes(p.join(self.model_dir, '*')):
-            mesh_id = mesh.ioinfo.filename
-            self.meshes[mesh_id] = mesh.tojson()
-            if isinstance(mesh, TexturedTriMesh):
-                self.textures[mesh_id] = as_jpg_file(mesh.texture)
-                self.thumbnails[mesh_id] = as_jpg_thumbnail_file(mesh.texture)
-            else:
-                self.thumbnails[mesh_id] = as_jpg_thumbnail_file(blank_tnail)
-        print(' - {} meshes imported.'.format(len(self.meshes)))
-        print(' - {} meshes are textured.'.format(len(self.textures)))
-
-    def mesh_ids(self):
-        return list(self.meshes)
-
-    def mesh_json(self, mesh_id):
-        return self.meshes[mesh_id]
-
-    def textured_mesh_ids(self):
-        return list(self.textures)
-
-    def texture_file(self, mesh_id):
-        return deepcopy(self.textures[mesh_id])
-
-    def thumbnail_file(self, mesh_id):
-        return deepcopy(self.thumbnails[mesh_id])
-
-
 class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
 
     def __init__(self, image_dir, landmark_dir, template_dir=None):
@@ -246,3 +171,90 @@ class CachingImageMenpoAdapter(ImageMenpoAdapter):
 
     def thumbnail_file(self, image_id):
         return deepcopy(self.thumbnails[image_id])
+
+
+class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
+
+    def __init__(self, model_dir, landmark_dir, template_dir=None):
+        MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir)
+        self.model_dir = model_dir
+        print ('models:    {}'.format(model_dir))
+
+    @property
+    def n_dims(self):
+        return 3
+
+    def mesh_paths(self):
+        return mio.mesh_paths(p.join(self.model_dir, '*'))
+
+    def texture_paths(self):
+        return mio.image_paths(p.join(self.model_dir, '*'))
+
+    def mesh_ids(self):
+        return [p.splitext(p.split(m)[1])[0] for m in self.mesh_paths()]
+
+    def mesh_json(self, mesh_id):
+        mesh_glob = p.join(self.model_dir, mesh_id + '.*')
+        return list(mio.import_meshes(mesh_glob))[0].tojson()
+
+    def image_ids(self):
+        return [p.splitext(p.split(t)[1])[0] for t in self.texture_paths()]
+
+    def image_json(self, mesh_id):
+        img_glob = p.join(self.model_dir, mesh_id + '.*')
+        img = list(mio.import_images(img_glob))[0]
+        return {'width': img.width,
+                'height': img.height}
+
+    def texture_file(self, mesh_id):
+        img_glob = p.join(self.model_dir, mesh_id + '.*')
+        return as_jpg_file(list(mio.import_images(img_glob))[0])
+
+    def thumbnail_file(self, mesh_id):
+        img_glob = p.join(self.model_dir, mesh_id + '.*')
+        imgs = list(mio.import_images(img_glob))
+        if len(imgs) == 0:
+            return as_jpg_thumbnail_file(blank_tnail)
+        else:
+            return as_jpg_thumbnail_file(imgs[0])
+
+
+class CachingMeshMenpoAdapter(MeshMenpoAdapter):
+
+    def __init__(self, model_dir, landmark_dir, template_dir):
+        MeshMenpoAdapter.__init__(self, model_dir, landmark_dir, template_dir)
+        print('Caching meshes and textures...')
+        self.meshes = {}
+        self.textures = {}
+        self.thumbnails = {}
+        self.images = {}
+        for mesh in mio.import_meshes(p.join(self.model_dir, '*')):
+            mesh_id = mesh.ioinfo.filename
+            self.meshes[mesh_id] = mesh.tojson()
+            if isinstance(mesh, TexturedTriMesh):
+                self.images[mesh_id] = {'width':  mesh.texture.width,
+                                        'height': mesh.texture.height}
+                self.textures[mesh_id] = as_jpg_file(mesh.texture)
+                self.thumbnails[mesh_id] = as_jpg_thumbnail_file(mesh.texture)
+            else:
+                self.thumbnails[mesh_id] = as_jpg_thumbnail_file(blank_tnail)
+        print(' - {} meshes imported.'.format(len(self.meshes)))
+        print(' - {} meshes are textured.'.format(len(self.textures)))
+
+    def mesh_ids(self):
+        return list(self.meshes)
+
+    def mesh_json(self, mesh_id):
+        return self.meshes[mesh_id]
+
+    def image_ids(self):
+        return list(self.textures)
+
+    def image_json(self, image_id):
+        return self.images[image_id]
+
+    def texture_file(self, mesh_id):
+        return deepcopy(self.textures[mesh_id])
+
+    def thumbnail_file(self, mesh_id):
+        return deepcopy(self.thumbnails[mesh_id])
