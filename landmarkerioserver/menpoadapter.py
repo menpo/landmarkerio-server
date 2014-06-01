@@ -39,11 +39,14 @@ blank_tnail = menpo.image.Image.blank((16, 16), n_channels=3)
 
 class MenpoAdapter(LandmarkerIOAdapter):
 
-    def __init__(self, landmark_dir, template_dir=None):
+    def __init__(self, landmark_dir, template_dir=None, cache_dir=None):
+        # 1. landmark dir
         self.landmark_dir = p.abspath(p.expanduser(landmark_dir))
         if not p.isdir(self.landmark_dir):
             print("Warning the landmark dir does not exist - creating...")
             os.mkdir(self.landmark_dir)
+
+        # 2. template dir
         if template_dir is None:
             # try the user folder
             user_templates = p.expanduser(p.join('~', '.lmiotemplates'))
@@ -53,8 +56,19 @@ class MenpoAdapter(LandmarkerIOAdapter):
                 raise ValueError("No template dir provided and "
                                  "{} doesn't exist".format(user_templates))
         self.template_dir = p.abspath(p.expanduser(template_dir))
-        print ('landmarks: {}'.format(landmark_dir))
-        print ('templates: {}'.format(template_dir))
+
+        # 3. cache dir
+        if cache_dir is None:
+            # Default to inside the landmarks folder (we know the user is
+            # happy to write there)
+            cache_dir = p.join(self.landmark_dir, '.lmiocache')
+        self.cache_dir = p.abspath(p.expanduser(cache_dir))
+        if not p.isdir(self.cache_dir):
+            print("Warning the cache dir does not exist - creating...")
+            os.mkdir(self.cache_dir)
+        print ('landmarks: {}'.format(self.landmark_dir))
+        print ('templates: {}'.format(self.template_dir))
+        print ('cache:     {}'.format(self.cache_dir))
 
     @abc.abstractproperty
     def n_dims(self):
@@ -114,10 +128,14 @@ class MenpoAdapter(LandmarkerIOAdapter):
 
 class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
 
-    def __init__(self, image_dir, landmark_dir, template_dir=None):
-        MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir)
-        self.image_dir = image_dir
-        print ('images:    {}'.format(image_dir))
+    def __init__(self, image_dir, landmark_dir, template_dir=None,
+                 cache_dir=None):
+        MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir,
+                              cache_dir=cache_dir)
+        self.image_dir = p.abspath(p.expanduser(image_dir))
+        if not p.isdir(self.image_dir):
+            raise ValueError('{} is not a directory.'.format(self.image_dir))
+        print ('images:    {}'.format(self.image_dir))
 
     @property
     def n_dims(self):
@@ -147,9 +165,11 @@ class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
 
 class CachingImageMenpoAdapter(ImageMenpoAdapter):
 
-    def __init__(self, image_dir, landmark_dir, template_dir=None):
+    def __init__(self, image_dir, landmark_dir, template_dir=None,
+                 cache_dir=None):
         ImageMenpoAdapter.__init__(self, image_dir, landmark_dir,
-                                   template_dir=template_dir)
+                                   template_dir=template_dir,
+                                   cache_dir=cache_dir)
         print('Caching images and thumbnails...')
         self.images, self.textures, self.thumbnails = {}, {}, {}
         for img in mio.import_images(p.join(self.image_dir, '*')):
@@ -175,43 +195,47 @@ class CachingImageMenpoAdapter(ImageMenpoAdapter):
 
 class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
 
-    def __init__(self, model_dir, landmark_dir, template_dir=None):
-        MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir)
-        self.model_dir = model_dir
-        print ('models:    {}'.format(model_dir))
+    def __init__(self, mesh_dir, landmark_dir, template_dir=None,
+                 cache_dir=None):
+        MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir,
+                              cache_dir=cache_dir)
+        self.mesh_dir = p.abspath(p.expanduser(mesh_dir))
+        if not p.isdir(self.mesh_dir):
+            raise ValueError('{} is not a directory.'.format(self.mesh_dir))
+        print ('meshes:    {}'.format(mesh_dir))
 
     @property
     def n_dims(self):
         return 3
 
     def mesh_paths(self):
-        return mio.mesh_paths(p.join(self.model_dir, '*'))
+        return mio.mesh_paths(p.join(self.mesh_dir, '*'))
 
     def texture_paths(self):
-        return mio.image_paths(p.join(self.model_dir, '*'))
+        return mio.image_paths(p.join(self.mesh_dir, '*'))
 
     def mesh_ids(self):
         return [p.splitext(p.split(m)[1])[0] for m in self.mesh_paths()]
 
     def mesh_json(self, mesh_id):
-        mesh_glob = p.join(self.model_dir, mesh_id + '.*')
+        mesh_glob = p.join(self.mesh_dir, mesh_id + '.*')
         return list(mio.import_meshes(mesh_glob))[0].tojson()
 
     def image_ids(self):
         return [p.splitext(p.split(t)[1])[0] for t in self.texture_paths()]
 
     def image_json(self, mesh_id):
-        img_glob = p.join(self.model_dir, mesh_id + '.*')
+        img_glob = p.join(self.mesh_dir, mesh_id + '.*')
         img = list(mio.import_images(img_glob))[0]
         return {'width': img.width,
                 'height': img.height}
 
     def texture_file(self, mesh_id):
-        img_glob = p.join(self.model_dir, mesh_id + '.*')
+        img_glob = p.join(self.mesh_dir, mesh_id + '.*')
         return as_jpg_file(list(mio.import_images(img_glob))[0])
 
     def thumbnail_file(self, mesh_id):
-        img_glob = p.join(self.model_dir, mesh_id + '.*')
+        img_glob = p.join(self.mesh_dir, mesh_id + '.*')
         imgs = list(mio.import_images(img_glob))
         if len(imgs) == 0:
             return as_jpg_thumbnail_file(blank_tnail)
@@ -221,14 +245,17 @@ class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
 
 class CachingMeshMenpoAdapter(MeshMenpoAdapter):
 
-    def __init__(self, model_dir, landmark_dir, template_dir):
-        MeshMenpoAdapter.__init__(self, model_dir, landmark_dir, template_dir)
+    def __init__(self, mesh_dir, landmark_dir, template_dir=None,
+                 cache_dir=None):
+        MeshMenpoAdapter.__init__(self, mesh_dir, landmark_dir,
+                                  template_dir=template_dir,
+                                  cache_dir=cache_dir)
         print('Caching meshes and textures...')
         self.meshes = {}
         self.textures = {}
         self.thumbnails = {}
         self.images = {}
-        for mesh in mio.import_meshes(p.join(self.model_dir, '*')):
+        for mesh in mio.import_meshes(p.join(self.mesh_dir, '*')):
             mesh_id = mesh.ioinfo.filename
             self.meshes[mesh_id] = mesh.tojson()
             if isinstance(mesh, TexturedTriMesh):
