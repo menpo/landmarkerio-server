@@ -5,7 +5,9 @@ import glob
 import json
 import os
 import os.path as p
-import StringIO
+from cStringIO import StringIO
+import shutil
+from flask import send_file
 
 import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
@@ -16,9 +18,13 @@ from .api import (MeshLandmarkerIOAdapter, LandmarkerIOAdapter,
                   ImageLandmarkerIOAdapter)
 
 
+def asset_id_for_path(fp):
+    return p.splitext(p.split(fp)[-1])[0]
+
+
 def as_jpg_file(image):
     p = image.as_PILImage()
-    output = StringIO.StringIO()
+    output = StringIO()
     p.save(output, format='jpeg')
     output.seek(0)
     return output
@@ -29,10 +35,19 @@ def as_jpg_thumbnail_file(img, width=640):
     w, h = ip.size
     h2w = h * 1. / w
     ips = ip.resize((width, int(h2w * width)))
-    output = StringIO.StringIO()
+    output = StringIO()
     ips.save(output, quality=20, format='jpeg')
     output.seek(0)
     return output
+
+
+def save_jpg_thumbnail_file(img, path, width=640):
+    ip = img.as_PILImage()
+    w, h = ip.size
+    h2w = h * 1. / w
+    ips = ip.resize((width, int(h2w * width)))
+    ips.save(path, quality=20, format='jpeg')
+
 
 blank_tnail = menpo.image.Image.blank((16, 16), n_channels=3)
 
@@ -61,6 +76,7 @@ class MenpoAdapter(LandmarkerIOAdapter):
         if cache_dir is None:
             # Default to inside the landmarks folder (we know the user is
             # happy to write there)
+            # TODO maybe this should be a temp folder by default?
             cache_dir = p.join(self.landmark_dir, '.lmiocache')
         self.cache_dir = p.abspath(p.expanduser(cache_dir))
         if not p.isdir(self.cache_dir):
@@ -129,69 +145,119 @@ class MenpoAdapter(LandmarkerIOAdapter):
 class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
 
     def __init__(self, image_dir, landmark_dir, template_dir=None,
-                 cache_dir=None):
+                 cache_dir=None, cache_startup=False):
         MenpoAdapter.__init__(self, landmark_dir, template_dir=template_dir,
                               cache_dir=cache_dir)
         self.image_dir = p.abspath(p.expanduser(image_dir))
         if not p.isdir(self.image_dir):
             raise ValueError('{} is not a directory.'.format(self.image_dir))
         print ('images:    {}'.format(self.image_dir))
+        # Construct a mapping from id's to file paths
+        self.asset_paths = {}
+        self._rebuild_asset_mapping()
+        if cache_startup:
+            # User want's to ensure the cache is up to date.
+            asset_ids = set(self.asset_paths.iterkeys())
+            cached = set(os.listdir(self.cache_dir))
+            uncashed = asset_ids - cached
+            print('{} assets need to be added to '
+                  'the cache'.format(len(uncashed)))
+            for asset in uncashed:
+                self.cache_asset(asset)
+            if len(uncashed) > 0:
+                print('{} assets cached.'.format(uncashed))
+
+        # The basic Image adapter only caches thumbnails and metadata
+        self.image_infos = {}
+        self.thumbnails = {}
+        self._initialize_caches()
 
     @property
     def n_dims(self):
         return 2
 
-    def image_paths(self):
-        return mio.image_paths(p.join(self.image_dir, '*'))
+    def _rebuild_asset_mapping(self):
+        img_paths = mio.image_paths(p.join(self.image_dir, '*'))
+        self.asset_paths = {asset_id_for_path(path): path
+                                  for path in img_paths}
+
+    def _load_thumbnail(self, image_id):
+        with open(p.join(self.cache_dir, image_id,
+                         'thumbnail.jpg'), 'rb') as f:
+            thumbnail = StringIO(f.read())
+        thumbnail.seek(0)
+        self.thumbnails[image_id] = thumbnail
+
+    def _initialize_caches(self):
+
+        def load_cache_for_asset(arg, dirname, fnames):
+            split = dirname.split(p.join(self.cache_dir, ''))
+            if len(split) == 1:
+                return None
+            asset_id = split[1]
+            if 'image.json' in fnames:
+                with open(p.join(dirname, 'image.json'), 'rb') as f:
+                    self.image_infos[asset_id] = json.load(f)
+            if 'thumbnail.jpg' in fnames:
+                self._load_thumbnail(asset_id)
+
+        p.walk(self.cache_dir, load_cache_for_asset, None)
+        print('loaded {} cached thumbnails and '
+              'metadata.'.format(len(self.image_infos)))
 
     def image_ids(self):
-        return [p.splitext(p.split(m)[1])[0] for m in self.image_paths()]
+        # whenever a client requests the ids freshen the list up
+        self._rebuild_asset_mapping()
+        return self.asset_paths.keys()
 
     def image_json(self, image_id):
-        img_glob = p.join(self.image_dir, image_id + '.*')
-        # Import image, send W, H
-        img = list(mio.import_images(img_glob))[0]
-        return {'width': img.width,
-                'height': img.height}
+        if not image_id in self.image_infos:
+            self.cache_asset(image_id)
+        return self.image_infos[image_id]
+
+    def cache_asset(self, image_id):
+        if not image_id in self.asset_paths:
+            self._rebuild_asset_mapping()
+        if not image_id in self.asset_paths:
+            raise ValueError('{} is not a valid asset_id'.format(image_id))
+        img = mio.import_image(self.asset_paths[image_id])
+        img_cache_dir = p.join(self.cache_dir, image_id)
+        if not p.isdir(img_cache_dir):
+            print("Cache for {} does not exist - creating...".format(image_id))
+            os.mkdir(img_cache_dir)
+        image_info_path = p.join(img_cache_dir, 'image.json')
+        texture_path = p.join(img_cache_dir, 'texture.jpg')
+        thumbnail_path = p.join(img_cache_dir, 'thumbnail.jpg')
+        # 1. Save out the image metadata json
+        image_info = {'width': img.width,
+                      'height': img.height}
+        with open(image_info_path, 'wb') as f:
+            json.dump(image_info, f)
+        # and add it to the live cache
+        self.image_infos[image_id] = image_info
+        # 2. Save out the image
+        if img.ioinfo.extension == '.jpg':
+            # Original was a jpg, save it
+            shutil.copyfile(img.ioinfo.filepath, texture_path)
+        else:
+            # Original wasn't a jpg - make it so
+            img.as_PILImage().save(texture_path, format='jpeg')
+        # 3. Save out the thumbnail
+        save_jpg_thumbnail_file(img, thumbnail_path)
+        # and add it to the cache
+        self._load_thumbnail(image_id)
 
     def texture_file(self, image_id):
-        img_glob = p.join(self.image_dir, image_id + '.*')
-        return as_jpg_file(list(mio.import_images(img_glob))[0])
+        texture_path = p.join(self.cache_dir, image_id, 'texture.jpg')
+        if not p.isfile(texture_path):
+            # asset hasn't been cached yet
+            self.cache_asset(image_id)
+        return texture_path
 
     def thumbnail_file(self, image_id):
-        img_glob = p.join(self.image_dir, image_id + '.*')
-        return as_jpg_thumbnail_file(list(mio.import_images(img_glob))[0])
-
-
-class CachingImageMenpoAdapter(ImageMenpoAdapter):
-
-    def __init__(self, image_dir, landmark_dir, template_dir=None,
-                 cache_dir=None):
-        ImageMenpoAdapter.__init__(self, image_dir, landmark_dir,
-                                   template_dir=template_dir,
-                                   cache_dir=cache_dir)
-        print('Caching images and thumbnails...')
-        self.images, self.textures, self.thumbnails = {}, {}, {}
-        for img in mio.import_images(p.join(self.image_dir, '*')):
-            image_id = img.ioinfo.filename
-            self.images[image_id] = {'width': img.width,
-                                     'height': img.height}
-            self.textures[image_id] = as_jpg_file(img)
-            self.thumbnails[image_id] = as_jpg_thumbnail_file(img)
-        print(' - {} images imported.'.format(len(self.images)))
-
-    def image_ids(self):
-        return list(self.images)
-
-    def image_json(self, image_id):
-        return self.images[image_id]
-
-    def texture_file(self, image_id):
-        return deepcopy(self.textures[image_id])
-
-    def thumbnail_file(self, image_id):
+        if not image_id in self.thumbnails:
+            self.cache_asset(image_id)
         return deepcopy(self.thumbnails[image_id])
-
 
 class MeshMenpoAdapter(MenpoAdapter, MeshLandmarkerIOAdapter):
 

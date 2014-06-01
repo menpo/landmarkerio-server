@@ -5,8 +5,7 @@ import os.path as p
 from landmarkerioserver.api import app_for_mesh_adapter, app_for_image_adapter
 from landmarkerioserver.menpoadapter import (MeshMenpoAdapter,
                                              CachingMeshMenpoAdapter,
-                                             ImageMenpoAdapter,
-                                             CachingImageMenpoAdapter)
+                                             ImageMenpoAdapter)
 import webbrowser
 
 
@@ -22,11 +21,9 @@ def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False,
     else:
         landmark_dir = p.abspath(p.expanduser(landmark_dir))
     if mode == 'image':
-        if cache:
-            adapter = CachingImageMenpoAdapter(asset_dir, landmark_dir,
-                                               template_dir)
-        else:
-            adapter = ImageMenpoAdapter(asset_dir, landmark_dir, template_dir)
+        adapter = ImageMenpoAdapter(asset_dir, landmark_dir,
+                                    template_dir=template_dir,
+                                    cache_startup=cache)
         _, app, _ = app_for_image_adapter(adapter, gzip=gzip, dev=dev)
     elif mode == 'mesh':
         if cache:
