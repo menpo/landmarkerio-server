@@ -294,16 +294,6 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
                 return abort(404, message="{} is not an available "
                                           "image".format(asset_id))
 
-    class Image(Resource):
-
-        def get(self, asset_id):
-            try:
-                return adapter.image_json(asset_id)
-            except Exception as e:
-                print(e)
-                return abort(404, message="{} is not an available "
-                                          "image".format(asset_id))
-
     class Texture(Resource):
 
         def get(self, asset_id):
