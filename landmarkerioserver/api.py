@@ -1,5 +1,5 @@
 import abc
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, make_response
 from flask.ext.restful import abort, Api, Resource
 from flask.ext.restful.utils import cors
 
@@ -102,11 +102,6 @@ def app_for_adapter(adapter, gzip=False, dev=False):
     api, app
     """
     app = Flask(__name__)
-
-    if gzip:
-        from flask.ext.compress import Compress
-        Compress(app)
-
     api = Api(app)
     origin = 'http://www.landmarker.io'
     if dev:
@@ -137,7 +132,7 @@ def app_for_adapter(adapter, gzip=False, dev=False):
                 return abort(409, message="{}:{} unable to "
                                           "save".format(asset_id, lm_id))
 
-        # Need this here to enable CORS put! Not sure why...
+        # Need this here to enable CORS put see http://mzl.la/1rCDkWX
         def options(self, asset_id, lm_id):
             pass
 
@@ -273,8 +268,11 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
 
         def get(self, asset_id):
             try:
-                return send_file(adapter.mesh_json(asset_id),
-                                 mimetype='json')
+                r = make_response(send_file(adapter.mesh_json(asset_id),
+                                            mimetype='application/json'))
+                # we know all meshes are served gzipped, inform the client
+                r.headers['Content-Encoding'] = 'gzip'
+                return r
             except Exception as e:
                 print(e)
                 return abort(404, message="{} is not an available "

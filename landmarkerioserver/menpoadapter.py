@@ -5,6 +5,7 @@ import json
 import os
 import os.path as p
 import shutil
+import gzip
 
 import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
@@ -14,13 +15,13 @@ from .utils import load_template
 from .api import (MeshLandmarkerIOAdapter, LandmarkerIOAdapter,
                   ImageLandmarkerIOAdapter)
 
-CACHE_DIRNAME = '.lmiocache'
+CACHE_DIRNAME = 'lmiocache'
 TEMPLATE_DINAME = '.lmiotemplates'
 TEMPLATE_EXT = '.txt'
 TEXTURE_FILENAME = 'texture.jpg'
 IMAGE_INFO_FILENAME = 'image.json'
 THUMBNAIL_FILENAME = 'thumbnail.jpg'
-MESH_FILENAME = 'mesh.json'
+MESH_FILENAME = 'mesh.json.gz'
 
 
 def asset_id_for_path(fp):
@@ -260,7 +261,7 @@ class MeshMenpoAdapter(ImageMenpoAdapter, MeshLandmarkerIOAdapter):
     def _cache_mesh_for_id(self, asset_id, mesh):
         asset_cache_dir = p.join(self.cache_dir, asset_id)
         mesh_path = p.join(asset_cache_dir, MESH_FILENAME)
-        with open(mesh_path, 'wb') as f:
+        with gzip.open(mesh_path, 'wb') as f:
             json.dump(mesh.tojson(), f)
 
     def mesh_json(self, asset_id):
