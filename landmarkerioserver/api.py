@@ -15,19 +15,23 @@ class LandmarkerIOAdapter(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
+    def asset_ids(self):
+        pass
+
+    @abc.abstractmethod
     def all_landmarks(self):
         pass
 
     @abc.abstractmethod
-    def landmark_ids(self, mesh_id):
+    def landmark_ids(self, asset_id):
         pass
 
     @abc.abstractmethod
-    def landmark_json(self, mesh_id, lm_id):
+    def landmark_json(self, asset_id, lm_id):
         pass
 
     @abc.abstractmethod
-    def save_landmark_json(self, mesh_id, lm_id, lm_json):
+    def save_landmark_json(self, asset_id, lm_id, lm_json):
         pass
 
     @abc.abstractmethod
@@ -38,10 +42,6 @@ class LandmarkerIOAdapter(object):
     def template_json(self, lm_id):
         pass
 
-    @abc.abstractmethod
-    def thumbnail_file(self, image_id):
-        pass
-
 
 class ImageLandmarkerIOAdapter(LandmarkerIOAdapter):
     r"""
@@ -50,15 +50,15 @@ class ImageLandmarkerIOAdapter(LandmarkerIOAdapter):
     """
 
     @abc.abstractmethod
-    def image_ids(self):
+    def image_json(self, asset_id):
         pass
 
     @abc.abstractmethod
-    def image_json(self, image_id):
+    def texture_file(self, asset_id):
         pass
 
     @abc.abstractmethod
-    def texture_file(self, image_id):
+    def thumbnail_file(self, asset_id):
         pass
 
 
@@ -69,11 +69,7 @@ class MeshLandmarkerIOAdapter(ImageLandmarkerIOAdapter):
     """
 
     @abc.abstractmethod
-    def mesh_ids(self):
-        pass
-
-    @abc.abstractmethod
-    def mesh_json(self, mesh_id):
+    def mesh_json(self, asset_id):
         pass
 
 
@@ -127,14 +123,19 @@ def app_for_adapter(adapter, gzip=False, dev=False):
         def get(self, asset_id, lm_id):
             try:
                 return adapter.landmark_json(asset_id, lm_id)
-            except:
-                return abort(404, message="{}:{} does not exist".format(asset_id, lm_id))
+            except Exception as e:
+                print(e)
+                return abort(404, message="{}:{} does not "
+                                          "exist".format(asset_id, lm_id))
 
         def put(self, asset_id, lm_id):
             try:
-                return adapter.save_landmark_json(asset_id, lm_id, request.json)
-            except:
-                return abort(409, message="{}:{} unable to save".format(asset_id, lm_id))
+                return adapter.save_landmark_json(asset_id, lm_id,
+                                                  request.json)
+            except Exception as e:
+                print(e)
+                return abort(409, message="{}:{} unable to "
+                                          "save".format(asset_id, lm_id))
 
         # Need this here to enable CORS put! Not sure why...
         def options(self, asset_id, lm_id):
@@ -156,7 +157,8 @@ def app_for_adapter(adapter, gzip=False, dev=False):
         def get(self, lm_id):
             try:
                 return adapter.template_json(lm_id)
-            except:
+            except Exception as e:
+                print(e)
                 return abort(404, message="{} template not exist".format(lm_id))
 
     class TemplateList(Resource):
@@ -170,8 +172,10 @@ def app_for_adapter(adapter, gzip=False, dev=False):
             try:
                 return send_file(adapter.thumbnail_file(asset_id),
                                  mimetype='image/jpeg')
-            except:
-                return abort(404, message="{} is not an asset".format(asset_id))
+            except Exception as e:
+                print(e)
+                return abort(404, message="{} is not an "
+                                          "asset".format(asset_id))
 
 
     api_endpoint = '/api/v1/'
@@ -212,32 +216,35 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
 
     class Image(Resource):
 
-        def get(self, image_id):
+        def get(self, asset_id):
             try:
-                return adapter.image_json(image_id)
-            except:
+                return adapter.image_json(asset_id)
+            except Exception as e:
+                print(e)
                 return abort(404, message="{} is not an available "
-                                          "image".format(image_id))
+                                          "image".format(asset_id))
 
     class ImageList(Resource):
 
         def get(self):
-            return adapter.image_ids()
+            return adapter.asset_ids()
 
     class Texture(Resource):
 
-        def get(self, image_id):
+        def get(self, asset_id):
             try:
-                return send_file(adapter.texture_file(image_id),
+                return send_file(adapter.texture_file(asset_id),
                                  mimetype='image/jpeg')
-            except:
-                return abort(404, message="{} is not an image".format(image_id))
+            except Exception as e:
+                print(e)
+                return abort(404, message="{} is not an available "
+                                          "image".format(asset_id))
 
     api.add_resource(ImageList, api_endpoint + 'images')
-    api.add_resource(Image, api_endpoint + 'images/<string:image_id>')
-    api.add_resource(Texture, api_endpoint + 'textures/<string:image_id>')
+    api.add_resource(Image, api_endpoint + 'images/<string:asset_id>')
+    api.add_resource(Texture, api_endpoint + 'textures/<string:asset_id>')
 
-    return api, app, api_endpoint
+    return app
 
 
 def app_for_mesh_adapter(adapter, gzip=False, dev=False):
@@ -259,24 +266,58 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
         Default: False
 
     """
-    api, app, api_endpoint = app_for_image_adapter(adapter, gzip=gzip,
-                                                   dev=dev)
+    api, app, api_endpoint = app_for_adapter(adapter, gzip=gzip, dev=dev)
 
     class Mesh(Resource):
 
-        def get(self, mesh_id):
+        def get(self, asset_id):
             try:
-                return adapter.mesh_json(mesh_id)
-            except:
+                return send_file(adapter.mesh_json(asset_id),
+                                 mimetype='json')
+            except Exception as e:
+                print(e)
                 return abort(404, message="{} is not an available "
-                                          "mesh".format(mesh_id))
+                                          "mesh".format(asset_id))
 
     class MeshList(Resource):
 
         def get(self):
-            return adapter.mesh_ids()
+            return adapter.asset_ids()
+
+    class Image(Resource):
+
+        def get(self, asset_id):
+            try:
+                return adapter.image_json(asset_id)
+            except Exception as e:
+                print(e)
+                return abort(404, message="{} is not an available "
+                                          "image".format(asset_id))
+
+    class Image(Resource):
+
+        def get(self, asset_id):
+            try:
+                return adapter.image_json(asset_id)
+            except Exception as e:
+                print(e)
+                return abort(404, message="{} is not an available "
+                                          "image".format(asset_id))
+
+    class Texture(Resource):
+
+        def get(self, asset_id):
+            try:
+                return send_file(adapter.texture_file(asset_id),
+                                 mimetype='image/jpeg')
+            except Exception as e:
+                print(e)
+                return abort(404, message="{} is not an "
+                                          "image".format(asset_id))
 
     api.add_resource(MeshList, api_endpoint + 'meshes')
-    api.add_resource(Mesh, api_endpoint + 'meshes/<string:mesh_id>')
+    api.add_resource(Mesh, api_endpoint + 'meshes/<string:asset_id>')
+    api.add_resource(Image, api_endpoint + 'images/<string:asset_id>')
+    api.add_resource(Texture, api_endpoint + 'textures/<string:asset_id>')
 
-    return api, app, api_endpoint
+    return app

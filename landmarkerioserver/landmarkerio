@@ -4,7 +4,6 @@
 import os.path as p
 from landmarkerioserver.api import app_for_mesh_adapter, app_for_image_adapter
 from landmarkerioserver.menpoadapter import (MeshMenpoAdapter,
-                                             CachingMeshMenpoAdapter,
                                              ImageMenpoAdapter)
 import webbrowser
 
@@ -24,14 +23,12 @@ def main(mode, asset_dir, landmark_dir=None, template_dir=None, cache=False,
         adapter = ImageMenpoAdapter(asset_dir, landmark_dir,
                                     template_dir=template_dir,
                                     cache_startup=cache)
-        _, app, _ = app_for_image_adapter(adapter, gzip=gzip, dev=dev)
+        app = app_for_image_adapter(adapter, gzip=gzip, dev=dev)
     elif mode == 'mesh':
-        if cache:
-            adapter = CachingMeshMenpoAdapter(asset_dir, landmark_dir,
-                                              template_dir)
-        else:
-            adapter = MeshMenpoAdapter(asset_dir, landmark_dir, template_dir)
-        _, app, _ = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
+        adapter = MeshMenpoAdapter(asset_dir, landmark_dir,
+                                   template_dir=template_dir,
+                                   cache_startup=cache)
+        app = app_for_mesh_adapter(adapter, gzip=gzip, dev=dev)
     else:
         raise ValueError("first argument must be 'image' or 'mesh'")
     if not dev:
