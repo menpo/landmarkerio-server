@@ -218,7 +218,8 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
 
         def get(self, asset_id):
             try:
-                return adapter.image_json(asset_id)
+                return send_file(adapter.image_json(asset_id),
+                                 mimetype='json')
             except Exception as e:
                 print(e)
                 return abort(404, message="{} is not an available "
@@ -288,7 +289,8 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
 
         def get(self, asset_id):
             try:
-                return adapter.image_json(asset_id)
+                return send_file(adapter.image_json(asset_id),
+                                 mimetype='json')
             except Exception as e:
                 print(e)
                 return abort(404, message="{} is not an available "
