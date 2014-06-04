@@ -50,7 +50,7 @@ class ImageLandmarkerIOAdapter(LandmarkerIOAdapter):
     """
 
     @abc.abstractmethod
-    def image_json(self, asset_id):
+    def image_info(self, asset_id):
         pass
 
     @abc.abstractmethod
@@ -73,33 +73,22 @@ class MeshLandmarkerIOAdapter(ImageLandmarkerIOAdapter):
         pass
 
 
-def app_for_adapter(adapter, gzip=False, dev=False):
+def app_for_adapter(adapter, dev=False):
     r"""
     Generate a Flask App that will serve meshes landmarks and templates to
     landmarker.io
 
     Parameters
     ----------
-
     adapter: :class:`LandmarkerIOAdapter`
         Concrete implementation of the LandmarkerIOAdapter. Will be queried for
         all data to pass to landmarker.io.
-
-    gzip: Boolean, optional
-        If True, responses will be gzipped before being sent to the client.
-        Higher workload for the server, smaller payload to the client.
-
-        Default: False
-
-    dev: Boolean, optional
+    dev: `bool`, optional
         If True, listen to anyone for CORS.
-
-        Default: False
 
     Returns
     -------
-
-    api, app
+    api, app, api_endpoint
     """
     app = Flask(__name__)
     api = Api(app)
@@ -154,7 +143,8 @@ def app_for_adapter(adapter, gzip=False, dev=False):
                 return adapter.template_json(lm_id)
             except Exception as e:
                 print(e)
-                return abort(404, message="{} template not exist".format(lm_id))
+                return abort(404, message="{} template not "
+                                          "exist".format(lm_id))
 
     class TemplateList(Resource):
 
@@ -188,7 +178,7 @@ def app_for_adapter(adapter, gzip=False, dev=False):
     return api, app, api_endpoint
 
 
-def app_for_image_adapter(adapter, gzip=False, dev=False):
+def app_for_image_adapter(adapter, dev=False):
     r"""
     Generate a Flask App that will serve images, landmarks and templates to
     landmarker.io
@@ -200,20 +190,14 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
         Concrete implementation of the Image adapter. Will be queried for
         all data to pass to landmarker.io.
 
-    gzip: Boolean, optional
-        If True, responses will be gzipped before being sent to the client.
-        Higher workload for the server, smaller payload to the client.
-
-        Default: False
-
     """
-    api, app, api_endpoint = app_for_adapter(adapter, gzip=gzip, dev=dev)
+    api, app, api_endpoint = app_for_adapter(adapter, dev=dev)
 
     class Image(Resource):
 
         def get(self, asset_id):
             try:
-                return send_file(adapter.image_json(asset_id),
+                return send_file(adapter.image_info(asset_id),
                                  mimetype='json')
             except Exception as e:
                 print(e)
@@ -243,26 +227,18 @@ def app_for_image_adapter(adapter, gzip=False, dev=False):
     return app
 
 
-def app_for_mesh_adapter(adapter, gzip=False, dev=False):
+def app_for_mesh_adapter(adapter, dev=False):
     r"""
     Generate a Flask App that will serve images, landmarks and templates to
     landmarker.io
 
     Parameters
     ----------
-
     adapter: :class:`MeshLandmarkerIOAdapter`
         Concrete implementation of the Image adapter. Will be queried for
         all data to pass to landmarker.io.
-
-    gzip: Boolean, optional
-        If True, responses will be gzipped before being sent to the client.
-        Higher workload for the server, smaller payload to the client.
-
-        Default: False
-
     """
-    api, app, api_endpoint = app_for_adapter(adapter, gzip=gzip, dev=dev)
+    api, app, api_endpoint = app_for_adapter(adapter, dev=dev)
 
     class Mesh(Resource):
 
@@ -287,7 +263,7 @@ def app_for_mesh_adapter(adapter, gzip=False, dev=False):
 
         def get(self, asset_id):
             try:
-                return send_file(adapter.image_json(asset_id),
+                return send_file(adapter.image_info(asset_id),
                                  mimetype='json')
             except Exception as e:
                 print(e)
