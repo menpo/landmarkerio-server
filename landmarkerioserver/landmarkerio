@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import os.path as p
 from landmarkerioserver.api import app_for_mesh_adapter, app_for_image_adapter
 from landmarkerioserver.menpoadapter import (MeshMenpoAdapter,
                                              ImageMenpoAdapter)
@@ -31,7 +30,8 @@ def main(mode, asset_dir, landmark_dir=None, template_dir=None,
         webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
     app.run()
 
-from landmarkerioserver.menpoadapter import TEMPLATE_DINAME, CACHE_DIRNAME
+from landmarkerioserver.menpoadapter import (TEMPLATE_DINAME, CACHE_DIRNAME,
+                                             LANDMARKS_DIR)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -42,20 +42,21 @@ if __name__ == "__main__":
     parser.add_argument("mode", help="'image' or 'mesh'")
     parser.add_argument("path", help="path that will be searched for assets")
     parser.add_argument("-l", "--landmarks",
-                        help="The directory containing the landmarks."
-                             "If None provided taken as path/landmarks")
+                        help="The directory containing the landmarks. If "
+                             "None provided taken"
+                             " as './{}'".format(LANDMARKS_DIR))
     parser.add_argument("-t", "--templates",
                         help="The directory containing the template files. "
                              "If None provided taken as "
-                             "~/{}".format(TEMPLATE_DINAME))
+                             "'~/{}'".format(TEMPLATE_DINAME))
     parser.add_argument("-c", "--cache",
                         help="The directory used to cache assets for serving."
+                             " If None provided taken as './{}'. "
                              "This cache is populated the first time the "
                              "server is run. Subsequent runs verify the cache "
                              "but do not have to rebuild it. Once you have "
                              "finished annotating assets delete this folder "
-                             "to reclaim disk space. If None provided taken as"
-                             " landmarks/{}".format(CACHE_DIRNAME))
+                             "to reclaim disk space.".format(CACHE_DIRNAME))
     parser.add_argument("--dev", action='store_true',
                         help="Listen to all CORS requests. Useful for "
                              "development on localhost.")

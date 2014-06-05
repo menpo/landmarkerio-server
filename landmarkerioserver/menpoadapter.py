@@ -37,6 +37,15 @@ def save_jpg_thumbnail_file(img, path, width=640):
     ips.save(path, quality=20, format='jpeg')
 
 
+def autocache(f):
+    def wrapped(self, asset_id):
+        if not asset_id in self._asset_paths:
+            # asset hasn't been cached yet
+            self.cache_asset(asset_id)
+        f(self, asset_id)
+    return wrapped
+
+
 class MenpoAdapter(LandmarkerIOAdapter):
 
     def __init__(self, asset_dir, landmark_dir=None, template_dir=None,
@@ -49,7 +58,8 @@ class MenpoAdapter(LandmarkerIOAdapter):
 
         # 2. landmark dir
         if landmark_dir is None:
-            landmark_dir = p.join(asset_dir, LANDMARKS_DIR)
+            # By default place the landmarks in the cwd
+            landmark_dir = p.join(os.getcwd(), LANDMARKS_DIR)
         self.landmark_dir = p.abspath(p.expanduser(landmark_dir))
         if not p.isdir(self.landmark_dir):
             print("Warning the landmark dir does not exist - creating...")
@@ -68,9 +78,8 @@ class MenpoAdapter(LandmarkerIOAdapter):
 
         # 4. cache dir
         if cache_dir is None:
-            # Default to inside the landmarks folder (we know the user is
-            # happy to write there)
-            cache_dir = p.join(self.landmark_dir, CACHE_DIRNAME)
+            # By default place the cache in the cwd
+            cache_dir = p.join(os.getcwd(), CACHE_DIRNAME)
         self.cache_dir = p.abspath(p.expanduser(cache_dir))
         if not p.isdir(self.cache_dir):
             print("Warning the cache dir does not exist - creating...")
@@ -87,8 +96,6 @@ class MenpoAdapter(LandmarkerIOAdapter):
         asset_ids = set(self.asset_paths.iterkeys())
         cached = set(os.listdir(self.cache_dir))
         uncashed = asset_ids - cached
-        stale = cached - asset_ids
-        print stale
         print('{} assets need to be added to '
               'the cache'.format(len(uncashed)))
         for i, asset in enumerate(uncashed):
@@ -102,10 +109,16 @@ class MenpoAdapter(LandmarkerIOAdapter):
         pass
 
     def cache_asset(self, asset_id):
-        r"""Caches the info for a given asset id so it can be efficiently
+        r"""
+        Caches the info for a given asset id so it can be efficiently
         served in the future.
+
+        Parameters
+        ----------
+        asset_id : `str`
+        The id of the asset that needs to be cached
         """
-        print('im totally caching an asset right now.')
+        print('Caching asset {}'.format(asset_id))
         if not asset_id in self.asset_paths:
             self._rebuild_asset_mapping()
         if not asset_id in self.asset_paths:
@@ -118,11 +131,37 @@ class MenpoAdapter(LandmarkerIOAdapter):
 
     @abc.abstractmethod
     def _cache_asset(self, asset_id):
+        r"""
+        Actually cache an asset.
+
+        Parameters
+        ----------
+        asset_id : `str`
+            The id of the asset that needs to be cached
+        """
         pass
 
     @abc.abstractmethod
+    def _asset_paths(self):
+        r"""
+        Recalculate paths to assets that this server can import
+
+        Returns
+        -------
+        paths : `iterable`
+            An iterable of paths that this server can import.
+        """
+        return []
+
     def _rebuild_asset_mapping(self):
-        pass
+        self.asset_paths = {}
+        for path in self._asset_paths():
+            asset_id = asset_id_for_path(path)
+            if asset_id in self._asset_paths():
+                raise RuntimeError(
+                    "Error - asset_id {} is not unique - links to {} and "
+                    "{}".format(asset_id, self.asset_paths[asset_id], path))
+            self.asset_paths[asset_id] = path
 
     def asset_ids(self):
         # whenever a client requests the ids freshen the list up
@@ -188,10 +227,8 @@ class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
     def n_dims(self):
         return 2
 
-    def _rebuild_asset_mapping(self):
-        img_paths = mio.image_paths(p.join(self.asset_dir, '*'))
-        self.asset_paths = {asset_id_for_path(path): path
-                            for path in img_paths}
+    def _asset_paths(self):
+        return mio.image_paths(p.join(self.asset_dir, '*'))
 
     def _cache_asset(self, asset_id):
         r"""Actually cache this asset_id.
@@ -219,34 +256,26 @@ class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
         # 3. Save out the thumbnail
         save_jpg_thumbnail_file(img, thumbnail_path)
 
+    @autocache
     def image_info(self, asset_id):
         info_path = p.join(self.cache_dir, asset_id, IMAGE_INFO_FILENAME)
-        print self.asset_paths
-        if not asset_id in self.asset_paths or not p.isfile(info_path):
-            # asset hasn't been cached yet
-            self.cache_asset(asset_id)
         if asset_id in self.asset_paths and p.isfile(info_path):
             return info_path
         else:
             raise ValueError
 
+    @autocache
     def texture_file(self, asset_id):
         texture_path = p.join(self.cache_dir, asset_id, TEXTURE_FILENAME)
-        print self.asset_paths
-        if not not asset_id in self.asset_paths or not p.isfile(texture_path):
-            # asset hasn't been cached yet
-            self.cache_asset(asset_id)
         if asset_id in self.asset_paths and p.isfile(texture_path):
             return texture_path
         else:
             raise ValueError
 
+    @autocache
     def thumbnail_file(self, asset_id):
         thumbnail_path = p.join(self.cache_dir, asset_id, THUMBNAIL_FILENAME)
-        print self.asset_paths
-        if not asset_id in self.asset_paths or not p.isfile(thumbnail_path):
-            # asset hasn't been cached yet
-            self.cache_asset(asset_id)
+        print('{} - thumbnail_file: {}'.format(asset_id, thumbnail_path))
         if asset_id in self.asset_paths and p.isfile(thumbnail_path):
             return thumbnail_path
         else:
@@ -267,10 +296,8 @@ class MeshMenpoAdapter(ImageMenpoAdapter, MeshLandmarkerIOAdapter):
     def n_dims(self):
         return 3
 
-    def _rebuild_asset_mapping(self):
-        mesh_paths = mio.mesh_paths(p.join(self.asset_dir, '*'))
-        self.asset_paths = {asset_id_for_path(path): path
-                            for path in mesh_paths}
+    def _asset_paths(self):
+        return mio.mesh_paths(p.join(self.asset_dir, '*'))
 
     def _cache_asset(self, asset_id):
         r"""Actually cache this asset_id.
@@ -286,11 +313,10 @@ class MeshMenpoAdapter(ImageMenpoAdapter, MeshLandmarkerIOAdapter):
         with gzip.open(mesh_path, 'wb') as f:
             json.dump(mesh.tojson(), f)
 
+    @autocache
     def mesh_json(self, asset_id):
         mesh_path = p.join(self.cache_dir, asset_id, MESH_FILENAME)
-        if not asset_id in self.asset_paths or not p.isfile(mesh_path):
-            # asset hasn't been cached yet
-            self.cache_asset(asset_id)
+        print('{} - mesh_json: {}'.format(asset_id, mesh_path))
         if asset_id in self.asset_paths and p.isfile(mesh_path):
             return mesh_path
         else:
