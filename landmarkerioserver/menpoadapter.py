@@ -48,14 +48,16 @@ def autocache(f):
 
 class MenpoAdapter(LandmarkerIOAdapter):
 
-    def __init__(self, asset_dir, landmark_dir=None, template_dir=None,
-                 cache_dir=None):
+    def __init__(self, asset_dir, recursive=False, landmark_dir=None,
+                 template_dir=None, cache_dir=None):
         # 1. asset dir
         self.asset_dir = p.abspath(p.expanduser(asset_dir))
         if not p.isdir(self.asset_dir):
             raise ValueError('{} is not a directory.'.format(self.asset_dir))
         print ('assets:    {}'.format(self.asset_dir))
-
+        self.recursive = recursive
+        if self.recursive:
+            print('assets dir will be searched recursively.')
         # 2. landmark dir
         if landmark_dir is None:
             # By default place the landmarks in the cwd
@@ -95,14 +97,14 @@ class MenpoAdapter(LandmarkerIOAdapter):
         # Handle aggressive cache at startup
         asset_ids = set(self.asset_paths.iterkeys())
         cached = set(os.listdir(self.cache_dir))
-        uncashed = asset_ids - cached
+        uncached = asset_ids - cached
         print('{} assets need to be added to '
-              'the cache'.format(len(uncashed)))
-        for i, asset in enumerate(uncashed):
-            print('Caching {}/{} - {}'.format(i + 1, len(uncashed), asset))
+              'the cache'.format(len(uncached)))
+        for i, asset in enumerate(uncached):
+            print('Caching {}/{} - {}'.format(i + 1, len(uncached), asset))
             self.cache_asset(asset)
-        if len(uncashed) > 0:
-                print('{} assets cached.'.format(len(uncashed)))
+        if len(uncached) > 0:
+                print('{} assets cached.'.format(len(uncached)))
 
     @abc.abstractproperty
     def n_dims(self):
@@ -128,6 +130,13 @@ class MenpoAdapter(LandmarkerIOAdapter):
             print("Cache for {} does not exist - creating...".format(asset_id))
             os.mkdir(asset_cache_dir)
         self._cache_asset(asset_id)
+
+    @property
+    def _glob_pattern(self):
+        if self.recursive:
+            return os.path.join('**', '*')
+        else:
+            return '*'
 
     @abc.abstractmethod
     def _cache_asset(self, asset_id):
@@ -157,9 +166,9 @@ class MenpoAdapter(LandmarkerIOAdapter):
         self.asset_paths = {}
         for path in self._asset_paths():
             asset_id = asset_id_for_path(path)
-            if asset_id in self._asset_paths():
+            if asset_id in self.asset_paths:
                 raise RuntimeError(
-                    "Error - asset_id {} is not unique - links to {} and "
+                    "asset_id {} is not unique - links to {} and "
                     "{}".format(asset_id, self.asset_paths[asset_id], path))
             self.asset_paths[asset_id] = path
 
@@ -228,7 +237,7 @@ class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
         return 2
 
     def _asset_paths(self):
-        return mio.image_paths(p.join(self.asset_dir, '*'))
+        return mio.image_paths(p.join(self.asset_dir, self._glob_pattern))
 
     def _cache_asset(self, asset_id):
         r"""Actually cache this asset_id.
@@ -284,9 +293,10 @@ class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
 
 class MeshMenpoAdapter(ImageMenpoAdapter, MeshLandmarkerIOAdapter):
 
-    def __init__(self, asset_dir, landmark_dir=None, template_dir=None,
-                 cache_dir=None):
+    def __init__(self, asset_dir, recursive=False, landmark_dir=None,
+                 template_dir=None, cache_dir=None):
         ImageMenpoAdapter.__init__(self, asset_dir,
+                                   recursive=recursive,
                                    landmark_dir=landmark_dir,
                                    template_dir=template_dir,
                                    cache_dir=cache_dir)
@@ -297,7 +307,7 @@ class MeshMenpoAdapter(ImageMenpoAdapter, MeshLandmarkerIOAdapter):
         return 3
 
     def _asset_paths(self):
-        return mio.mesh_paths(p.join(self.asset_dir, '*'))
+        return mio.mesh_paths(p.join(self.asset_dir, self._glob_pattern))
 
     def _cache_asset(self, asset_id):
         r"""Actually cache this asset_id.
