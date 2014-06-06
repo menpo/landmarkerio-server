@@ -7,7 +7,7 @@ from landmarkerioserver.menpoadapter import (MeshMenpoAdapter,
 import webbrowser
 
 
-def main(mode, asset_dir, recursive=False, landmark_dir=None,
+def main(mode, asset_dir, recursive=False, extension=None, landmark_dir=None,
          template_dir=None, cache_dir=False, dev=False):
     r"""
 
@@ -15,6 +15,7 @@ def main(mode, asset_dir, recursive=False, landmark_dir=None,
     if mode == 'image':
         adapter = ImageMenpoAdapter(asset_dir,
                                     recursive=recursive,
+                                    extension=extension,
                                     landmark_dir=landmark_dir,
                                     template_dir=template_dir,
                                     cache_dir=cache_dir)
@@ -22,6 +23,7 @@ def main(mode, asset_dir, recursive=False, landmark_dir=None,
     elif mode == 'mesh':
         adapter = MeshMenpoAdapter(asset_dir,
                                    recursive=recursive,
+                                   extension=extension,
                                    landmark_dir=landmark_dir,
                                    template_dir=template_dir,
                                    cache_dir=cache_dir)
@@ -46,6 +48,9 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--recursive", action='store_true',
                         help="If provided the path is searched recursively for"
                              " assets")
+    parser.add_argument("-e", "--ext",
+                        help="If provided only files with this extension "
+                             "will be imported.")
     parser.add_argument("-l", "--landmarks",
                         help="The directory containing the landmarks. If "
                              "None provided taken"
@@ -66,5 +71,6 @@ if __name__ == "__main__":
                         help="Listen to all CORS requests. Useful for "
                              "development on localhost.")
     ns = parser.parse_args()
-    main(ns.mode, ns.path, recursive=ns.recursive, landmark_dir=ns.landmarks,
+    main(ns.mode, ns.path, recursive=ns.recursive,
+         extension=ns.ext, landmark_dir=ns.landmarks,
          template_dir=ns.templates, cache_dir=ns.cache, dev=ns.dev)
