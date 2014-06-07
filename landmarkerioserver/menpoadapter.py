@@ -121,8 +121,6 @@ class MenpoAdapter(LandmarkerIOAdapter):
         """
         print('Caching asset {}'.format(asset_id))
         if not asset_id in self.asset_paths:
-            self._build_asset_mapping()
-        if not asset_id in self.asset_paths:
             raise ValueError('{} is not a valid asset_id'.format(asset_id))
         asset_cache_dir = p.join(self.cache_dir, asset_id)
         if not p.isdir(asset_cache_dir):
