@@ -1,79 +1,11 @@
-import abc
 from flask import Flask, request, send_file, make_response
 from flask.ext.restful import abort, Api, Resource
 from flask.ext.restful.utils import cors
 
 
-class LandmarkerIOAdapter(object):
-    r"""
-    Abstract definition of an adapter that can be passed to app_for_adapter in
-    order to generate a legal Flask implementation of landmarker.io's REST API.
+def generate_add
 
-    Note that this implementation is incomplete, as it does include the ability
-    to host assets.
-    """
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def asset_ids(self):
-        pass
-
-    @abc.abstractmethod
-    def all_landmarks(self):
-        pass
-
-    @abc.abstractmethod
-    def landmark_ids(self, asset_id):
-        pass
-
-    @abc.abstractmethod
-    def landmark_json(self, asset_id, lm_id):
-        pass
-
-    @abc.abstractmethod
-    def save_landmark_json(self, asset_id, lm_id, lm_json):
-        pass
-
-    @abc.abstractmethod
-    def templates(self):
-        pass
-
-    @abc.abstractmethod
-    def template_json(self, lm_id):
-        pass
-
-
-class ImageLandmarkerIOAdapter(LandmarkerIOAdapter):
-    r"""
-    Abstract definition of an adapter that serves image assets along with
-    landmarks and templates.
-    """
-
-    @abc.abstractmethod
-    def image_info(self, asset_id):
-        pass
-
-    @abc.abstractmethod
-    def texture_file(self, asset_id):
-        pass
-
-    @abc.abstractmethod
-    def thumbnail_file(self, asset_id):
-        pass
-
-
-class MeshLandmarkerIOAdapter(ImageLandmarkerIOAdapter):
-    r"""
-    Abstract definition of an adapter that serves mesh assets along with
-    landmarks and templates.
-    """
-
-    @abc.abstractmethod
-    def mesh_json(self, asset_id):
-        pass
-
-
-def app_for_adapter(adapter, dev=False):
+def app_for_adapters(adapter, dev=False):
     r"""
     Generate a Flask App that will serve meshes landmarks and templates to
     landmarker.io
@@ -106,7 +38,7 @@ def app_for_adapter(adapter, dev=False):
 
         def get(self, asset_id, lm_id):
             try:
-                return adapter.landmark_json(asset_id, lm_id)
+                return adapter.load_lm(asset_id, lm_id)
             except Exception as e:
                 print(e)
                 return abort(404, message="{}:{} does not "
@@ -114,7 +46,7 @@ def app_for_adapter(adapter, dev=False):
 
         def put(self, asset_id, lm_id):
             try:
-                return adapter.save_landmark_json(asset_id, lm_id,
+                return adapter.save_lm(asset_id, lm_id,
                                                   request.json)
             except Exception as e:
                 print(e)
@@ -129,12 +61,12 @@ def app_for_adapter(adapter, dev=False):
 
         def get(self):
             print 'asked for list'
-            return adapter.all_landmarks()
+            return adapter.all_lms()
 
     class LandmarkListForId(Resource):
 
         def get(self, asset_id):
-            return adapter.landmark_ids(asset_id)
+            return adapter.lm_ids(asset_id)
 
     class Template(Resource):
 
@@ -191,7 +123,7 @@ def app_for_image_adapter(adapter, dev=False):
         all data to pass to landmarker.io.
 
     """
-    api, app, api_endpoint = app_for_adapter(adapter, dev=dev)
+    api, app, api_endpoint = app_for_adapters(adapter, dev=dev)
 
     class Image(Resource):
 
@@ -227,7 +159,7 @@ def app_for_image_adapter(adapter, dev=False):
     return app
 
 
-def app_for_mesh_adapter(adapter, dev=False):
+def app_for_mesh_adapter(mesh_adapter, dev=False):
     r"""
     Generate a Flask App that will serve images, landmarks and templates to
     landmarker.io
@@ -238,13 +170,13 @@ def app_for_mesh_adapter(adapter, dev=False):
         Concrete implementation of the Image adapter. Will be queried for
         all data to pass to landmarker.io.
     """
-    api, app, api_endpoint = app_for_adapter(adapter, dev=dev)
+    api, app, api_endpoint = app_for_adapters(mesh_adapter, dev=dev)
 
     class Mesh(Resource):
 
         def get(self, asset_id):
             try:
-                r = make_response(send_file(adapter.mesh_json(asset_id),
+                r = make_response(send_file(mesh_adapter.mesh_json(asset_id),
                                             mimetype='application/json'))
                 # we know all meshes are served gzipped, inform the client
                 r.headers['Content-Encoding'] = 'gzip'
@@ -257,13 +189,13 @@ def app_for_mesh_adapter(adapter, dev=False):
     class MeshList(Resource):
 
         def get(self):
-            return adapter.asset_ids()
+            return mesh_adapter.asset_ids()
 
     class Image(Resource):
 
         def get(self, asset_id):
             try:
-                return send_file(adapter.image_info(asset_id),
+                return send_file(mesh_adapter.image_info(asset_id),
                                  mimetype='json')
             except Exception as e:
                 print(e)
@@ -274,7 +206,7 @@ def app_for_mesh_adapter(adapter, dev=False):
 
         def get(self, asset_id):
             try:
-                return send_file(adapter.texture_file(asset_id),
+                return send_file(mesh_adapter.texture_file(asset_id),
                                  mimetype='image/jpeg')
             except Exception as e:
                 print(e)

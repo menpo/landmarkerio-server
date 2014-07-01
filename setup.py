@@ -20,5 +20,5 @@ setup(name='landmarkerio-server',
       install_requires=['menpo>=0.2.5',
                         'Flask>=0.10.1',
                         'Flask-RESTful>=0.2.11'],
-      scripts=[p.join('landmarkerioserver', 'landmarkerio')]
+      scripts=[p.join('landmarkerioserver', 'lmio')]
       )

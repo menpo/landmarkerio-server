@@ -1,6 +1,4 @@
 import abc
-from collections import defaultdict
-import glob
 import json
 import os
 import os.path as p
@@ -10,20 +8,10 @@ from flask import safe_join
 
 import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
-import menpo
 
-from .utils import load_template
-from .api import (MeshLandmarkerIOAdapter, LandmarkerIOAdapter,
-                  ImageLandmarkerIOAdapter)
-
-CACHE_DIRNAME = 'lmiocache'
-TEMPLATE_DINAME = '.lmiotemplates'
-TEMPLATE_EXT = '.txt'
-TEXTURE_FILENAME = 'texture.jpg'
-IMAGE_INFO_FILENAME = 'image.json'
-THUMBNAIL_FILENAME = 'thumbnail.jpg'
-MESH_FILENAME = 'mesh.json.gz'
-LANDMARKS_DIR = 'lmiolandmarks'
+from landmarkerio import (CACHE_DIRNAME,
+                          IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
+                          THUMBNAIL_FILENAME, MESH_FILENAME)
 
 
 def asset_id_for_path(fp):
@@ -38,12 +26,38 @@ def save_jpg_thumbnail_file(img, path, width=640):
     ips.save(path, quality=20, format='jpeg')
 
 
-class MenpoAdapter(LandmarkerIOAdapter):
+class ImageAdapter(object):
+    r"""
+    Abstract definition of an adapter that serves image assets
+    """
 
-    def __init__(self, asset_dir, recursive=False,
-                 extension=None, landmark_dir=None, template_dir=None,
-                 cache_dir=None):
-        # 1. asset dir
+    @abc.abstractmethod
+    def image_info(self, asset_id):
+        pass
+
+    @abc.abstractmethod
+    def texture_file(self, asset_id):
+        pass
+
+    @abc.abstractmethod
+    def thumbnail_file(self, asset_id):
+        pass
+
+
+class MeshAdapter(ImageAdapter):
+    r"""
+    Abstract definition of an adapter that serves mesh assets along with
+    landmarks and templates.
+    """
+
+    @abc.abstractmethod
+    def mesh_json(self, asset_id):
+        pass
+
+
+class MenpoAdapter(object):
+
+    def __init__(self, asset_dir, recursive=False, ext=None, cache_dir=None):
         self.asset_dir = p.abspath(p.expanduser(asset_dir))
         if not p.isdir(self.asset_dir):
             raise ValueError('{} is not a directory.'.format(self.asset_dir))
@@ -51,33 +65,13 @@ class MenpoAdapter(LandmarkerIOAdapter):
         self.recursive = recursive
         if self.recursive:
             print('assets dir will be searched recursively.')
-        if extension is not None:
-            self.extension_str = '.' + extension
+        if ext is not None:
+            self.extension_str = '.' + ext
             print('only assets of type {} will be '
                   'loaded.'.format(self.extension_str))
         else:
             self.extension_str = ''
-        # 2. landmark dir
-        if landmark_dir is None:
-            # By default place the landmarks in the cwd
-            landmark_dir = p.join(os.getcwd(), LANDMARKS_DIR)
-        self.landmark_dir = p.abspath(p.expanduser(landmark_dir))
-        if not p.isdir(self.landmark_dir):
-            print("Warning the landmark dir does not exist - creating...")
-            os.mkdir(self.landmark_dir)
 
-        # 3. template dir
-        if template_dir is None:
-            # try the user folder
-            user_templates = p.expanduser(p.join('~', TEMPLATE_DINAME))
-            if p.isdir(user_templates):
-                template_dir = user_templates
-            else:
-                raise ValueError("No template dir provided and "
-                                 "{} doesn't exist".format(user_templates))
-        self.template_dir = p.abspath(p.expanduser(template_dir))
-
-        # 4. cache dir
         if cache_dir is None:
             # By default place the cache in the cwd
             cache_dir = p.join(os.getcwd(), CACHE_DIRNAME)
@@ -85,8 +79,6 @@ class MenpoAdapter(LandmarkerIOAdapter):
         if not p.isdir(self.cache_dir):
             print("Warning the cache dir does not exist - creating...")
             os.mkdir(self.cache_dir)
-        print ('landmarks: {}'.format(self.landmark_dir))
-        print ('templates: {}'.format(self.template_dir))
         print ('cache:     {}'.format(self.cache_dir))
 
         # Construct a mapping from id's to file paths
@@ -104,10 +96,6 @@ class MenpoAdapter(LandmarkerIOAdapter):
             self.cache_asset(asset)
         if len(uncached) > 0:
                 print('{} assets cached.'.format(len(uncached)))
-
-    @abc.abstractproperty
-    def n_dims(self):
-        pass
 
     def cache_asset(self, asset_id):
         r"""
@@ -173,63 +161,8 @@ class MenpoAdapter(LandmarkerIOAdapter):
     def asset_ids(self):
         return self.asset_paths.keys()
 
-    def landmark_fp(self, asset_id, lm_id):
-        return safe_join(safe_join(self.landmark_dir, asset_id),
-                         lm_id + '.json')
 
-    def landmark_paths(self, asset_id=None):
-        if asset_id is None:
-            asset_id = '*'
-        g = glob.glob(p.join(safe_join(self.landmark_dir, asset_id), '*'))
-        return filter(lambda f: p.isfile(f) and
-                                p.splitext(f)[-1] == '.json', g)
-
-    def all_landmarks(self):
-        landmark_files = self.landmark_paths()
-        mapping = defaultdict(list)
-        for lm_path in landmark_files:
-            dir_path, filename = p.split(lm_path)
-            lm_set = p.splitext(filename)[0]
-            lm_id = p.split(dir_path)[1]
-            mapping[lm_id].append(lm_set)
-        return mapping
-
-    def landmark_ids(self, asset_id):
-        landmark_files = self.landmark_paths(asset_id=asset_id)
-        return [p.splitext(p.split(f)[-1])[0] for f in landmark_files]
-
-    def landmark_json(self, asset_id, lm_id):
-        fp = self.landmark_fp(asset_id, lm_id)
-        if not p.isfile(fp):
-            raise IOError
-        with open(fp, 'rb') as f:
-            lm = json.load(f)
-            return lm
-
-    def save_landmark_json(self, asset_id, lm_id, lm_json):
-        subject_dir = safe_join(self.landmark_dir, asset_id)
-        if not p.isdir(subject_dir):
-            os.mkdir(subject_dir)
-        fp = self.landmark_fp(asset_id, lm_id)
-        with open(fp, 'wb') as f:
-            json.dump(lm_json, f, sort_keys=True, indent=4,
-                      separators=(',', ': '))
-
-    def templates(self):
-        template_paths = glob.glob(p.join(self.template_dir,
-                                          '*' + TEMPLATE_EXT))
-        return [p.splitext(p.split(t)[-1])[0] for t in template_paths]
-
-    def template_json(self, lm_id):
-        fp = safe_join(self.template_dir, lm_id + TEMPLATE_EXT)
-        return load_template(fp, self.n_dims)
-
-
-class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
-
-    @property
-    def n_dims(self):
-        return 2
+class ImageMenpoAdapter(MenpoAdapter, ImageAdapter):
 
     def _asset_paths(self):
         return mio.image_paths(p.join(self.asset_dir, self._glob_pattern))
@@ -270,22 +203,12 @@ class ImageMenpoAdapter(MenpoAdapter, ImageLandmarkerIOAdapter):
         return p.join(self.cache_dir, asset_id, THUMBNAIL_FILENAME)
 
 
-class MeshMenpoAdapter(ImageMenpoAdapter, MeshLandmarkerIOAdapter):
+class MeshMenpoAdapter(ImageMenpoAdapter, MeshAdapter):
 
-    def __init__(self, asset_dir, recursive=False,
-                 extension=None, landmark_dir=None, template_dir=None,
-                 cache_dir=None):
-        ImageMenpoAdapter.__init__(self, asset_dir,
-                                   recursive=recursive,
-                                   extension=extension,
-                                   landmark_dir=landmark_dir,
-                                   template_dir=template_dir,
-                                   cache_dir=cache_dir)
+    def __init__(self, asset_dir, recursive=False, ext=None, cache_dir=None):
+        ImageMenpoAdapter.__init__(self, asset_dir, recursive=recursive,
+                                   ext=ext, cache_dir=cache_dir)
         self.meshes = {}
-
-    @property
-    def n_dims(self):
-        return 3
 
     def _asset_paths(self):
         return mio.mesh_paths(p.join(self.asset_dir, self._glob_pattern))

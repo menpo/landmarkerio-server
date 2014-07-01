@@ -1,30 +1,29 @@
 #!/usr/bin/env python
 # encoding: utf-8
-
-from landmarkerioserver.api import app_for_mesh_adapter, app_for_image_adapter
-from landmarkerioserver.menpoadapter import (MeshMenpoAdapter,
-                                             ImageMenpoAdapter)
 import webbrowser
 
+from landmarkerio.server import app_for_mesh_adapter, app_for_image_adapter
+from landmarkerio.asset import MeshMenpoAdapter, ImageMenpoAdapter
+from landmarkerio.landmark import FileLmAdapter
 
-def main(mode, asset_dir, recursive=False, extension=None, landmark_dir=None,
+
+def main(mode, asset_dir, recursive=False, extension=None, lm_dir=None,
          template_dir=None, cache_dir=False, dev=False):
     r"""
 
     """
+    lm_adapter = FileLmAdapter(lm_dir=lm_dir)
     if mode == 'image':
-        adapter = ImageMenpoAdapter(asset_dir,
+        adapter = ImageMenpoAdapter(asset_dir, lm_adapter,
                                     recursive=recursive,
                                     extension=extension,
-                                    landmark_dir=landmark_dir,
                                     template_dir=template_dir,
                                     cache_dir=cache_dir)
         app = app_for_image_adapter(adapter, dev=dev)
     elif mode == 'mesh':
-        adapter = MeshMenpoAdapter(asset_dir,
+        adapter = MeshMenpoAdapter(asset_dir, lm_adapter,
                                    recursive=recursive,
-                                   extension=extension,
-                                   landmark_dir=landmark_dir,
+                                   ext=extension,
                                    template_dir=template_dir,
                                    cache_dir=cache_dir)
         app = app_for_mesh_adapter(adapter, dev=dev)
@@ -34,8 +33,7 @@ def main(mode, asset_dir, recursive=False, extension=None, landmark_dir=None,
         webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
     app.run()
 
-from landmarkerioserver.menpoadapter import (TEMPLATE_DINAME, CACHE_DIRNAME,
-                                             LANDMARKS_DIR)
+from landmarkerio import (TEMPLATE_DINAME, CACHE_DIRNAME, LM_DIR)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -54,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--landmarks",
                         help="The directory containing the landmarks. If "
                              "None provided taken"
-                             " as './{}'".format(LANDMARKS_DIR))
+                             " as './{}'".format(LM_DIR))
     parser.add_argument("-t", "--templates",
                         help="The directory containing the template files. "
                              "If None provided taken as "
@@ -72,5 +70,5 @@ if __name__ == "__main__":
                              "development on localhost.")
     ns = parser.parse_args()
     main(ns.mode, ns.path, recursive=ns.recursive,
-         extension=ns.ext, landmark_dir=ns.landmarks,
+         extension=ns.ext, lm_dir=ns.landmarks,
          template_dir=ns.templates, cache_dir=ns.cache, dev=ns.dev)
