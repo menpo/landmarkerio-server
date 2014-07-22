@@ -3,8 +3,10 @@
 import webbrowser
 
 from landmarkerio.server import (lmio_api, add_lm_endpoints,
-                                 add_image_endpoints, add_mesh_endpoints)
+                                 add_image_endpoints, add_mesh_endpoints,
+add_template_endpoints)
 from landmarkerio.asset import MeshMenpoAdapter, ImageMenpoAdapter
+from landmarkerio.template import FileTemplateAdapter
 from landmarkerio.landmark import FileLmAdapter
 
 
@@ -19,13 +21,17 @@ def main(mode, asset_dir, recursive=False, ext=None, lm_dir=None,
     if mode == 'image':
         adapter = ImageMenpoAdapter(asset_dir, recursive=recursive,
                                     ext=ext, cache_dir=cache_dir)
+        n_dims = 2
         add_image_endpoints(api, adapter)
     elif mode == 'mesh':
         adapter = MeshMenpoAdapter(asset_dir, recursive=recursive,
                                    ext=ext, cache_dir=cache_dir)
+        n_dims = 3
         add_mesh_endpoints(api, adapter)
     else:
         raise ValueError("first argument must be 'image' or 'mesh'")
+    template_adapter = FileTemplateAdapter(n_dims, template_dir=template_dir)
+    add_template_endpoints(api, template_adapter)
     if not dev:
         webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
     app.run()
