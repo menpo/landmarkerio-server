@@ -1,7 +1,7 @@
 import itertools
 from collections import namedtuple
 import os.path as p
-import glob
+from pathlib import Path
 from flask import safe_join
 import abc
 
@@ -86,14 +86,13 @@ class FileTemplateAdapter(TemplateAdapter):
             else:
                 raise ValueError("No template dir provided and "
                                  "{} doesn't exist".format(user_templates))
-        self.template_dir = p.abspath(p.expanduser(template_dir))
+        self.template_dir = Path(p.abspath(p.expanduser(template_dir)))
         print ('templates: {}'.format(self.template_dir))
 
     def template_ids(self):
-        template_paths = glob.glob(p.join(self.template_dir,
-                                          '*' + TEMPLATE_EXT))
-        return [p.splitext(p.split(t)[-1])[0] for t in template_paths]
+        template_paths = self.template_dir.glob('*' + TEMPLATE_EXT)
+        return [t.stem for t in template_paths]
 
     def template_json(self, lm_id):
-        fp = safe_join(self.template_dir, lm_id + TEMPLATE_EXT)
+        fp = safe_join(str(self.template_dir), lm_id + TEMPLATE_EXT)
         return load_template(fp, self.n_dims)

@@ -4,7 +4,7 @@ import webbrowser
 
 from landmarkerio.server import (lmio_api, add_lm_endpoints,
                                  add_image_endpoints, add_mesh_endpoints,
-add_template_endpoints)
+                                 add_template_endpoints)
 from landmarkerio.asset import MeshMenpoAdapter, ImageMenpoAdapter
 from landmarkerio.template import FileTemplateAdapter
 from landmarkerio.landmark import FileLmAdapter
