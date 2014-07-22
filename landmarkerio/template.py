@@ -66,7 +66,7 @@ class TemplateAdapter(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def templates(self):
+    def template_ids(self):
         pass
 
     @abc.abstractmethod
@@ -89,7 +89,7 @@ class FileTemplateAdapter(TemplateAdapter):
         self.template_dir = p.abspath(p.expanduser(template_dir))
         print ('templates: {}'.format(self.template_dir))
 
-    def templates(self):
+    def template_ids(self):
         template_paths = glob.glob(p.join(self.template_dir,
                                           '*' + TEMPLATE_EXT))
         return [p.splitext(p.split(t)[-1])[0] for t in template_paths]

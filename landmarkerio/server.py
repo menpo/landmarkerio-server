@@ -1,11 +1,10 @@
 from flask import Flask, request, send_file, make_response
 from flask.ext.restful import abort, Api, Resource
 from flask.ext.restful.utils import cors
+from landmarkerio import LMIO_ORIGIN, LMIO_SERVER_ENDPOINT
 
 
-def generate_add
-
-def app_for_adapters(adapter, dev=False):
+def lmio_api(dev=False):
     r"""
     Generate a Flask App that will serve meshes landmarks and templates to
     landmarker.io
@@ -24,7 +23,7 @@ def app_for_adapters(adapter, dev=False):
     """
     app = Flask(__name__)
     api = Api(app)
-    origin = 'http://www.landmarker.io'
+    origin = LMIO_ORIGIN
     if dev:
         # in development mode, accept CORS from anyone
         origin = '*'
@@ -33,6 +32,26 @@ def app_for_adapters(adapter, dev=False):
                                                 'Content-Type', 'Accept'],
                                        methods=['HEAD', 'GET', 'POST', 'PATCH',
                                                 'PUT', 'OPTIONS', 'DELETE'])]
+    return api, app
+
+
+def add_lm_endpoints(api, adapter):
+    r"""
+    Generate a Flask App that will serve meshes landmarks and templates to
+    landmarker.io
+
+    Parameters
+    ----------
+    adapter: :class:`LandmarkerIOAdapter`
+        Concrete implementation of the LandmarkerIOAdapter. Will be queried for
+        all data to pass to landmarker.io.
+    dev: `bool`, optional
+        If True, listen to anyone for CORS.
+
+    Returns
+    -------
+    api, app, api_endpoint
+    """
 
     class Landmark(Resource):
 
@@ -60,13 +79,21 @@ def app_for_adapters(adapter, dev=False):
     class LandmarkList(Resource):
 
         def get(self):
-            print 'asked for list'
-            return adapter.all_lms()
+            return adapter.asset_id_to_lm_id()
 
     class LandmarkListForId(Resource):
 
         def get(self, asset_id):
             return adapter.lm_ids(asset_id)
+
+    api.add_resource(LandmarkList, LMIO_SERVER_ENDPOINT + 'landmarks')
+    api.add_resource(LandmarkListForId, LMIO_SERVER_ENDPOINT +
+                     'landmarks/<string:asset_id>')
+    api.add_resource(Landmark, LMIO_SERVER_ENDPOINT +
+                     'landmarks/<string:asset_id>/<string:lm_id>')
+
+
+def add_template_endpoints(api, adapter):
 
     class Template(Resource):
 
@@ -81,36 +108,14 @@ def app_for_adapters(adapter, dev=False):
     class TemplateList(Resource):
 
         def get(self):
-            return adapter.templates()
+            return adapter.template_ids()
 
-    class Thumbnail(Resource):
-
-        def get(self, asset_id):
-            try:
-                return send_file(adapter.thumbnail_file(asset_id),
-                                 mimetype='image/jpeg')
-            except Exception as e:
-                print(e)
-                return abort(404, message="{} is not an "
-                                          "asset".format(asset_id))
+    api.add_resource(TemplateList, LMIO_SERVER_ENDPOINT + 'templates')
+    api.add_resource(Template, LMIO_SERVER_ENDPOINT +
+                     'templates/<string:lm_id>')
 
 
-    api_endpoint = '/api/v1/'
-
-    api.add_resource(LandmarkList, api_endpoint + 'landmarks')
-    api.add_resource(LandmarkListForId, api_endpoint +
-                     'landmarks/<string:asset_id>')
-    api.add_resource(Landmark, api_endpoint +
-                     'landmarks/<string:asset_id>/<string:lm_id>')
-
-    api.add_resource(TemplateList, api_endpoint + 'templates')
-    api.add_resource(Template, api_endpoint + 'templates/<string:lm_id>')
-    api.add_resource(Thumbnail, api_endpoint + 'thumbnails/<string:asset_id>')
-
-    return api, app, api_endpoint
-
-
-def app_for_image_adapter(adapter, dev=False):
+def add_image_endpoints(api, adapter):
     r"""
     Generate a Flask App that will serve images, landmarks and templates to
     landmarker.io
@@ -123,8 +128,6 @@ def app_for_image_adapter(adapter, dev=False):
         all data to pass to landmarker.io.
 
     """
-    api, app, api_endpoint = app_for_adapters(adapter, dev=dev)
-
     class Image(Resource):
 
         def get(self, asset_id):
@@ -152,14 +155,27 @@ def app_for_image_adapter(adapter, dev=False):
                 return abort(404, message="{} is not an available "
                                           "image".format(asset_id))
 
-    api.add_resource(ImageList, api_endpoint + 'images')
-    api.add_resource(Image, api_endpoint + 'images/<string:asset_id>')
-    api.add_resource(Texture, api_endpoint + 'textures/<string:asset_id>')
+    class Thumbnail(Resource):
 
-    return app
+        def get(self, asset_id):
+            try:
+                return send_file(adapter.thumbnail_file(asset_id),
+                                 mimetype='image/jpeg')
+            except Exception as e:
+                print(e)
+                return abort(404, message="{} is not an "
+                                          "asset".format(asset_id))
+
+    api.add_resource(ImageList, LMIO_SERVER_ENDPOINT + 'images')
+    api.add_resource(Image, LMIO_SERVER_ENDPOINT + 'images/<string:asset_id>')
+
+    api.add_resource(Texture, LMIO_SERVER_ENDPOINT +
+                     'textures/<string:asset_id>')
+    api.add_resource(Thumbnail, LMIO_SERVER_ENDPOINT +
+                     'thumbnails/<string:asset_id>')
 
 
-def app_for_mesh_adapter(mesh_adapter, dev=False):
+def add_mesh_endpoints(api, adapter):
     r"""
     Generate a Flask App that will serve images, landmarks and templates to
     landmarker.io
@@ -170,13 +186,14 @@ def app_for_mesh_adapter(mesh_adapter, dev=False):
         Concrete implementation of the Image adapter. Will be queried for
         all data to pass to landmarker.io.
     """
-    api, app, api_endpoint = app_for_adapters(mesh_adapter, dev=dev)
+    # first setup the image endpoints
+    add_image_endpoints(api, adapter)
 
     class Mesh(Resource):
 
         def get(self, asset_id):
             try:
-                r = make_response(send_file(mesh_adapter.mesh_json(asset_id),
+                r = make_response(send_file(adapter.mesh_json(asset_id),
                                             mimetype='application/json'))
                 # we know all meshes are served gzipped, inform the client
                 r.headers['Content-Encoding'] = 'gzip'
@@ -189,33 +206,7 @@ def app_for_mesh_adapter(mesh_adapter, dev=False):
     class MeshList(Resource):
 
         def get(self):
-            return mesh_adapter.asset_ids()
+            return adapter.asset_ids()
 
-    class Image(Resource):
-
-        def get(self, asset_id):
-            try:
-                return send_file(mesh_adapter.image_info(asset_id),
-                                 mimetype='json')
-            except Exception as e:
-                print(e)
-                return abort(404, message="{} is not an available "
-                                          "image".format(asset_id))
-
-    class Texture(Resource):
-
-        def get(self, asset_id):
-            try:
-                return send_file(mesh_adapter.texture_file(asset_id),
-                                 mimetype='image/jpeg')
-            except Exception as e:
-                print(e)
-                return abort(404, message="{} is not an "
-                                          "image".format(asset_id))
-
-    api.add_resource(MeshList, api_endpoint + 'meshes')
-    api.add_resource(Mesh, api_endpoint + 'meshes/<string:asset_id>')
-    api.add_resource(Image, api_endpoint + 'images/<string:asset_id>')
-    api.add_resource(Texture, api_endpoint + 'textures/<string:asset_id>')
-
-    return app
+    api.add_resource(MeshList, LMIO_SERVER_ENDPOINT + 'meshes')
+    api.add_resource(Mesh, LMIO_SERVER_ENDPOINT + 'meshes/<string:asset_id>')

@@ -9,8 +9,7 @@ from flask import safe_join
 import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
 
-from landmarkerio import (CACHE_DIRNAME,
-                          IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
+from landmarkerio import (CACHE_DIRNAME, IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
                           THUMBNAIL_FILENAME, MESH_FILENAME)
 
 
@@ -46,8 +45,8 @@ class ImageAdapter(object):
 
 class MeshAdapter(ImageAdapter):
     r"""
-    Abstract definition of an adapter that serves mesh assets along with
-    landmarks and templates.
+    Abstract definition of an adapter that serves mesh assets
+
     """
 
     @abc.abstractmethod
