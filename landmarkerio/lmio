@@ -4,12 +4,14 @@ import webbrowser
 
 from landmarkerio.server import (lmio_api, add_lm_endpoints,
                                  add_image_endpoints, add_mesh_endpoints,
-                                 add_template_endpoints)
+                                 add_template_endpoints,
+                                 add_collection_endpoints)
 from landmarkerio.cache import (build_image_serial_cache,
                                 build_mesh_serial_cache)
 from landmarkerio.asset import MeshCacheAdapter, ImageCacheAdapter
 from landmarkerio.template import FileTemplateAdapter
 from landmarkerio.landmark import FileLmAdapter
+from landmarkerio.collection import AllCacheCollectionAdapter
 
 
 def main(mode, asset_dir, recursive=False, ext=None, lm_dir=None,
@@ -37,6 +39,7 @@ def main(mode, asset_dir, recursive=False, ext=None, lm_dir=None,
     endpoint_adder(api, asset_adapter(cache_dir))
     template_adapter = FileTemplateAdapter(n_dims, template_dir=template_dir)
     add_template_endpoints(api, template_adapter)
+    add_collection_endpoints(api, AllCacheCollectionAdapter(cache_dir))
     if not dev:
         webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
     app.run(debug=True)

@@ -115,6 +115,28 @@ def add_template_endpoints(api, adapter):
                      'templates/<string:lm_id>')
 
 
+def add_collection_endpoints(api, adapter):
+
+    class Collection(Resource):
+
+        def get(self, collection_id):
+            try:
+                return adapter.collection(collection_id)
+            except Exception as e:
+                print(e)
+                return abort(404, message="{} collection not "
+                                          "exist".format(collection_id))
+
+    class CollectionList(Resource):
+
+        def get(self):
+            return adapter.collection_ids()
+
+    api.add_resource(CollectionList, LMIO_SERVER_ENDPOINT + 'collection')
+    api.add_resource(Collection, LMIO_SERVER_ENDPOINT +
+                     'collection/<string:collection_id>')
+
+
 def add_image_endpoints(api, adapter):
     r"""
     Generate a Flask App that will serve images, landmarks and templates to

@@ -1,9 +1,8 @@
-import os.path as p
+from os.path import abspath, expanduser
 from pathlib import Path
-from flask import safe_join
 import abc
 
-from landmarkerio import COLLECTION_DIRNAME, COLLECTION_EXT
+from landmarkerio import ALL_COLLECTION_ID, COLLECTION_EXT, dirs_in_dir
 
 
 def load_collection(path):
@@ -21,29 +20,39 @@ class CollectionAdapter(object):
         pass
 
     @abc.abstractmethod
-    def collection_list(self, collection_id):
+    def collection(self, collection_id):
         pass
 
 
 class FileCollectionAdapter(CollectionAdapter):
 
-    def __init__(self, collection_dir=None):
-        if collection_dir is None:
-            # try the user folder
-            user_collections = p.expanduser(p.join('~', COLLECTION_DIRNAME))
-            if p.isdir(user_collections):
-                collection_dir = user_collections
-            else:
-                raise ValueError("No collection dir provided and "
-                                 "{} doesn't exist".format(user_collections))
-        self.collection_dir = Path(p.abspath(p.expanduser(collection_dir)))
+    def __init__(self, collection_dir):
+        self.collection_dir = Path(abspath(expanduser(collection_dir)))
         print ('collections: {}'.format(self.collection_dir))
+        collection_paths = self.collection_dir.glob('*' + COLLECTION_EXT)
+        self._collection = {c.stem: load_collection(c)
+                            for c in collection_paths}
 
     def collection_ids(self):
-        collection_paths = self.collection_dir.glob('*' + COLLECTION_EXT)
-        return [c.stem for c in collection_paths]
+        return self._collection.keys()
 
-    def collection_list(self, collection_id):
-        fp = safe_join(str(self.collection_dir), collection_id +
-                                                 COLLECTION_EXT)
-        return load_collection(fp)
+    def collection(self, collection_id):
+        return self._collection[collection_id]
+
+
+class AllCacheCollectionAdapter(CollectionAdapter):
+
+    def __init__(self, cache_dir):
+        cache_dir = Path(abspath(expanduser(cache_dir)))
+        self._collection = [p.name for p in dirs_in_dir(cache_dir)]
+        self._collection_ids = [ALL_COLLECTION_ID]
+
+    def collection_ids(self):
+        return self._collection_ids
+
+    def collection(self, collection_id):
+        if collection_id == ALL_COLLECTION_ID:
+            return self._collection
+        else:
+            raise ValueError("Only valid collection_id "
+                             "is '{}'".format(ALL_COLLECTION_ID))

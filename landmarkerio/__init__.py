@@ -9,9 +9,12 @@ COLLECTION_DIRNAME = '.lmiocollections'
 LM_EXT = '.json'
 TEMPLATE_EXT = '.txt'
 COLLECTION_EXT = '.txt'
+ALL_COLLECTION_ID = 'all'
 
 
 TEXTURE_FILENAME = 'texture.jpg'
 IMAGE_INFO_FILENAME = 'image.json'
 THUMBNAIL_FILENAME = 'thumbnail.jpg'
 MESH_FILENAME = 'mesh.json.gz'
+
+dirs_in_dir = lambda (path): [p for p in path.iterdir() if p.is_dir()]
