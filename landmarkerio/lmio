@@ -5,7 +5,9 @@ import webbrowser
 from landmarkerio.server import (lmio_api, add_lm_endpoints,
                                  add_image_endpoints, add_mesh_endpoints,
                                  add_template_endpoints)
-from landmarkerio.asset import MeshMenpoAdapter, ImageMenpoAdapter
+from landmarkerio.cache import (build_image_serial_cache,
+                                build_mesh_serial_cache)
+from landmarkerio.asset import MeshCacheAdapter, ImageCacheAdapter
 from landmarkerio.template import FileTemplateAdapter
 from landmarkerio.landmark import FileLmAdapter
 
@@ -19,22 +21,25 @@ def main(mode, asset_dir, recursive=False, ext=None, lm_dir=None,
     lm_adapter = FileLmAdapter(lm_dir)
     add_lm_endpoints(api, lm_adapter)
     if mode == 'image':
-        adapter = ImageMenpoAdapter(asset_dir, recursive=recursive,
-                                    ext=ext, cache_dir=cache_dir)
+        cache_builder = build_image_serial_cache
+        asset_adapter = ImageCacheAdapter
         n_dims = 2
-        add_image_endpoints(api, adapter)
+        endpoint_adder = add_image_endpoints
     elif mode == 'mesh':
-        adapter = MeshMenpoAdapter(asset_dir, recursive=recursive,
-                                   ext=ext, cache_dir=cache_dir)
+        cache_builder = build_mesh_serial_cache
+        asset_adapter = MeshCacheAdapter
         n_dims = 3
-        add_mesh_endpoints(api, adapter)
+        endpoint_adder = add_mesh_endpoints
     else:
         raise ValueError("first argument must be 'image' or 'mesh'")
+    cache_dir = cache_builder(asset_dir, recursive=recursive, ext=ext,
+                              cache_dir=cache_dir)
+    endpoint_adder(api, asset_adapter(cache_dir))
     template_adapter = FileTemplateAdapter(n_dims, template_dir=template_dir)
     add_template_endpoints(api, template_adapter)
     if not dev:
         webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
-    app.run()
+    app.run(debug=True)
 
 from landmarkerio import (TEMPLATE_DINAME, CACHE_DIRNAME, LM_DIRNAME)
 

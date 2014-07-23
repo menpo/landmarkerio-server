@@ -39,7 +39,7 @@ class LmAdapter(object):
 
 class FileLmAdapter(LmAdapter):
     r"""
-    Concrete implimentation of LmAdapater that serves landmarks from the
+    Concrete implementation of LmAdapater that serves landmarks from the
     local filesystem.
     """
 
