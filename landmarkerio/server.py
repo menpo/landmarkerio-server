@@ -35,6 +35,20 @@ def lmio_api(dev=False):
     return api, app
 
 
+def add_mode_endpoint(api, mode):
+
+    if mode not in ['image', 'mesh']:
+        raise ValueError("Mode can only be 'image' or 'mesh', "
+                         "not {}".format(mode))
+
+    class Mode(Resource):
+
+        def get(self):
+            return mode
+
+    api.add_resource(Mode, LMIO_SERVER_ENDPOINT + 'mode')
+
+
 def add_lm_endpoints(api, adapter):
     r"""
     Generate a Flask App that will serve meshes landmarks and templates to
