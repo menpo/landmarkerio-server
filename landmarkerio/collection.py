@@ -6,7 +6,7 @@ from landmarkerio import ALL_COLLECTION_ID, COLLECTION_EXT, dirs_in_dir
 
 
 def load_collection(path):
-    with open(path, 'rb') as f:
+    with open(str(path), 'rb') as f:
         collection = [l.strip() for l in f.readlines()]
     return [l for l in collection if len(l) > 0]
 

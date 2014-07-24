@@ -16,17 +16,15 @@ def serve_from_cache(mode, cache_dir, lm_dir, template_dir=None,
     """
     api, app = lmio_api(dev=dev)
     add_lm_endpoints(api, FileLmAdapter(lm_dir))
+    # always serve at least images
+    add_image_endpoints(api, ImageCacheAdapter(cache_dir))
     if mode == 'image':
         n_dims = 2
-        endpoint_adder = add_image_endpoints
-        asset_adapter = ImageCacheAdapter
     elif mode == 'mesh':
         n_dims = 3
-        endpoint_adder = add_mesh_endpoints
-        asset_adapter = MeshCacheAdapter
+        add_mesh_endpoints(api, MeshCacheAdapter(cache_dir))
     else:
         raise ValueError("mode must be 'image' or 'mesh'")
-    endpoint_adder(api, asset_adapter(cache_dir))
     add_mode_endpoint(api, mode)
     template_adapter = FileTemplateAdapter(n_dims, template_dir=template_dir)
     add_template_endpoints(api, template_adapter)

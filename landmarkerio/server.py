@@ -146,9 +146,9 @@ def add_collection_endpoints(api, adapter):
         def get(self):
             return adapter.collection_ids()
 
-    api.add_resource(CollectionList, LMIO_SERVER_ENDPOINT + 'collection')
+    api.add_resource(CollectionList, LMIO_SERVER_ENDPOINT + 'collections')
     api.add_resource(Collection, LMIO_SERVER_ENDPOINT +
-                     'collection/<string:collection_id>')
+                     'collections/<string:collection_id>')
 
 
 def add_image_endpoints(api, adapter):
@@ -222,9 +222,6 @@ def add_mesh_endpoints(api, adapter):
         Concrete implementation of the Image adapter. Will be queried for
         all data to pass to landmarker.io.
     """
-    # first setup the image endpoints
-    add_image_endpoints(api, adapter)
-
     class Mesh(Resource):
 
         def get(self, asset_id):
