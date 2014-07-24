@@ -5,9 +5,11 @@ import shutil
 import gzip
 from functools import partial
 from pathlib import Path
+import time
 
 import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
+import numpy as np
 
 from landmarkerio import (CACHE_DIRNAME, IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
                           THUMBNAIL_FILENAME, MESH_FILENAME)
@@ -86,17 +88,28 @@ def _cache_image_for_id(cache_dir, asset_id, img):
     image_info_path = p.join(asset_cache_dir, IMAGE_INFO_FILENAME)
     texture_path = p.join(asset_cache_dir, TEXTURE_FILENAME)
     thumbnail_path = p.join(asset_cache_dir, THUMBNAIL_FILENAME)
+    ioinfo = img.ioinfo
+
+    # WebGL only allows textures of maximum dimension 4096
+    ratio = 4096.0 / np.array(img.shape)
+    if np.any(ratio < 1):
+        # the largest axis of img will now be 4096
+        img = img.rescale(ratio.min(), round='round')
+        had_to_shrink = True
+    else:
+        had_to_shrink = False
     # 1. Save out the image metadata json
     image_info = {'width': img.width,
                   'height': img.height}
     with open(image_info_path, 'wb') as f:
         json.dump(image_info, f)
+
     # 2. Save out the image
-    if img.ioinfo.extension == '.jpg':
-        # Original was a jpg, save it
-        shutil.copyfile(img.ioinfo.filepath, texture_path)
+    if ioinfo.extension == '.jpg' and not had_to_shrink:
+        # Original was a jpg that was suitable, save it
+        shutil.copyfile(ioinfo.filepath, texture_path)
     else:
-        # Original wasn't a jpg - make it so
+        # Original wasn't a jpg or was too big - make it so
         img.as_PILImage().save(texture_path, format='jpeg')
     # 3. Save out the thumbnail
     save_jpg_thumbnail_file(img, thumbnail_path)
@@ -145,6 +158,12 @@ def serial_cacher(cache, path_asset_id):
         cache(path, asset_id)
 
 
+def parallel_cacher(cache, path_asset_id, n_jobs=-1):
+    from joblib import Parallel, delayed
+    Parallel(n_jobs=n_jobs, verbose=5)(delayed(cache)(path, asset_id)
+                                       for path, asset_id in path_asset_id)
+
+
 def build_cache(cacher_f, asset_path_f, cache_f, asset_dir, recursive=False,
                 ext=None, cache_dir=None):
 
@@ -177,9 +196,12 @@ def build_cache(cacher_f, asset_path_f, cache_f, asset_dir, recursive=False,
           'the cache'.format(len(uncached)))
     cache = partial(cache_asset, cache_dir, cache_f)
     path_asset_id = [(asset_id_to_paths[a_id], a_id) for a_id in uncached]
+    start = time.time()
     cacher_f(cache, path_asset_id)
+    elapsed = time.time() - start
     if len(uncached) > 0:
-        print('{} assets cached.'.format(len(uncached)))
+        print('{} assets cached in {:.0f} seconds'.format(len(uncached),
+                                                        elapsed))
     return cache_dir
 
 
@@ -188,15 +210,20 @@ build_mesh_serial_cache = partial(build_cache, serial_cacher, mesh_paths,
 build_image_serial_cache = partial(build_cache, serial_cacher, image_paths,
                                    cache_image)
 
+build_mesh_parallel_cache = partial(build_cache, parallel_cacher, mesh_paths,
+                                    cache_mesh)
+build_image_parallel_cache = partial(build_cache, parallel_cacher, image_paths,
+                                     cache_image)
+
 
 def cache_assets(mode, asset_dir, cache_dir, recursive=False, ext=None):
     r"""
 
     """
     if mode == 'image':
-        cache_builder = build_image_serial_cache
+        cache_builder = build_image_parallel_cache
     elif mode == 'mesh':
-        cache_builder = build_mesh_serial_cache
+        cache_builder = build_mesh_parallel_cache
     else:
         raise ValueError("mode must be 'image' or 'mesh'")
     return cache_builder(asset_dir, recursive=recursive, ext=ext,
