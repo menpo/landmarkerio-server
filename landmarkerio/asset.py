@@ -4,7 +4,7 @@ from pathlib import Path
 
 from flask import safe_join
 from landmarkerio import (IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
-                          THUMBNAIL_FILENAME, MESH_FILENAME, dirs_in_dir)
+                          THUMBNAIL_FILENAME, MESH_FILENAME)
 
 
 class ImageAdapter(object):
@@ -50,7 +50,6 @@ class ImageCacheAdapter(CacheAdapter, ImageAdapter):
         self._image_asset_ids = [a.parent.name
                                  for a in self.cache_dir.glob("*/image.json")
                                  if a.parent.parent == self.cache_dir]
-        print self._image_asset_ids
 
     def image_info(self, asset_id):
         return reduce(safe_join,
@@ -73,12 +72,12 @@ class MeshCacheAdapter(CacheAdapter, MeshAdapter):
     def __init__(self, cache_dir):
         CacheAdapter.__init__(self, cache_dir)
         self._mesh_asset_ids = [a.parent.name
-                                for a in self.cache_dir.glob("*/mesh.json")
+                                for a in self.cache_dir.glob("*/mesh.json.gz")
                                 if a.parent.parent == self.cache_dir]
-        print self._mesh_asset_ids
 
     def mesh_json(self, asset_id):
-        return reduce(safe_join, (self.cache_dir, asset_id, MESH_FILENAME))
+        return reduce(safe_join, (str(self.cache_dir), asset_id,
+                                  MESH_FILENAME))
 
     def asset_ids(self):
         return self._mesh_asset_ids

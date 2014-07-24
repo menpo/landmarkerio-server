@@ -9,6 +9,18 @@ from landmarkerio.collection import (AllCacheCollectionAdapter,
 from landmarkerio.asset import ImageCacheAdapter, MeshCacheAdapter
 
 
+def serve_with_cherrypy(app):
+    import cherrypy
+    # Mount the WSGI callable object (app) on the root directory
+    cherrypy.tree.graft(app, '/')
+    cherrypy.config.update({
+        'server.socket_port': 5000
+    })
+    # Start the CherryPy WSGI web server
+    cherrypy.engine.start()
+    cherrypy.engine.block()
+
+
 def serve_from_cache(mode, cache_dir, lm_dir, template_dir=None,
                      collection_dir=None, dev=False):
     r"""
