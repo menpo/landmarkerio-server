@@ -4,19 +4,6 @@
 from landmarkerio.serverconfigs import serve_from_cache, serve_with_cherrypy
 from landmarkerio import TEMPLATE_DINAME
 
-
-def main(mode, cache_dir, lm_dir, template_dir=None,
-         collection_dir=None, dev=False):
-    app = serve_from_cache(mode, cache_dir, lm_dir=lm_dir,
-                           template_dir=template_dir,
-                           collection_dir=collection_dir, dev=dev)
-    serve_with_cherrypy(app)
-    # kwargs = {}
-    # if dev:
-    #     kwargs['debug'] = True
-    # app.run(**kwargs)
-
-
 if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser(
@@ -42,6 +29,15 @@ if __name__ == "__main__":
     parser.add_argument("--dev", action='store_true',
                         help="Listen to all CORS requests. Useful for "
                              "development on localhost")
+    parser.add_argument("-p", "--port",
+                        help="The port to host the server on. 5000 by default")
     ns = parser.parse_args()
-    main(ns.mode, ns.cache, lm_dir=ns.landmarks, template_dir=ns.templates,
-         collection_dir=ns.collections, dev=ns.dev)
+
+    app = serve_from_cache(ns.mode, ns.cache, lm_dir=ns.landmarks,
+                           template_dir=ns.templates,
+                           collection_dir=ns.collections, dev=ns.dev)
+    if ns.port is None:
+        port = 5000
+    else:
+        port = int(ns.port)
+    serve_with_cherrypy(app, port=port)

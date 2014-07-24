@@ -27,6 +27,7 @@ def lmio_api(dev=False):
     if dev:
         # in development mode, accept CORS from anyone
         origin = '*'
+        app.debug = True
     api.decorators = [cors.crossdomain(origin=origin,
                                        headers=['Origin', 'X-Requested-With',
                                                 'Content-Type', 'Accept'],
