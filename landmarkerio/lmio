@@ -43,7 +43,10 @@ def main(mode, asset_dir, recursive=False, ext=None, lm_dir=None,
     add_collection_endpoints(api, AllCacheCollectionAdapter(cache_dir))
     if not dev:
         webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
-    app.run(debug=True)
+    kwargs = {}
+    if dev:
+        kwargs['debug'] = True
+    app.run(**kwargs)
 
 from landmarkerio import (TEMPLATE_DINAME, CACHE_DIRNAME, LM_DIRNAME)
 

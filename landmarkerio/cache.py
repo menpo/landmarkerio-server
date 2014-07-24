@@ -66,10 +66,8 @@ def cache_asset(cache_dir, cache_f, path, asset_id):
     asset_id : `str`
     The id of the asset that needs to be cached
     """
-    print('Caching asset {} from {}'.format(asset_id, path))
     asset_cache_dir = p.join(cache_dir, asset_id)
     if not p.isdir(asset_cache_dir):
-        print("Cache for {} does not exist - creating...".format(asset_id))
         os.mkdir(asset_cache_dir)
     cache_f(cache_dir, path, asset_id)
 
@@ -189,3 +187,17 @@ build_mesh_serial_cache = partial(build_cache, serial_cacher, mesh_paths,
                                   cache_mesh)
 build_image_serial_cache = partial(build_cache, serial_cacher, image_paths,
                                    cache_image)
+
+
+def cache_assets(mode, asset_dir, cache_dir, recursive=False, ext=None):
+    r"""
+
+    """
+    if mode == 'image':
+        cache_builder = build_image_serial_cache
+    elif mode == 'mesh':
+        cache_builder = build_mesh_serial_cache
+    else:
+        raise ValueError("mode must be 'image' or 'mesh'")
+    return cache_builder(asset_dir, recursive=recursive, ext=ext,
+                         cache_dir=cache_dir)

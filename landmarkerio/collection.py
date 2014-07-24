@@ -23,6 +23,12 @@ class CollectionAdapter(object):
     def collection(self, collection_id):
         pass
 
+    def __str__(self):
+        a = ('Serving {} collection(s):'.format(len(self.collection_ids())))
+        b = '\n'.join(' - {} ({} assets)'.format(c, len(self.collection(c)))
+                      for c in self.collection_ids())
+        return a + '\n' + b
+
 
 class FileCollectionAdapter(CollectionAdapter):
 

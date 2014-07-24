@@ -1,5 +1,5 @@
 from setuptools import setup
-import os.path as p
+from os.path import join
 
 setup(name='landmarkerio-server',
       version='0.0.7',
@@ -21,5 +21,7 @@ setup(name='landmarkerio-server',
                         'Flask>=0.10.1',
                         'Flask-RESTful>=0.2.11',
                         'pathlib>=1.0'],
-      scripts=[p.join('landmarkerio', 'lmio')]
+      scripts=[join('landmarkerio', 'lmio'),
+               join('landmarkerio', 'lmioserve'),
+               join('landmarkerio', 'lmiocache')]
       )
