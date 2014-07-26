@@ -13,7 +13,8 @@ from landmarkerio import Server
 
 def serve_with_cherrypy(app, port=5000):
     import cherrypy
-    # Mount the WSGI callable object (app) on the root directory
+    # Mount the WSGI callable object (app) on the desired endpoint (e.g.
+    # /api/v1)
     cherrypy.tree.graft(app, Server.endpoint)
     cherrypy.config.update({
         'server.socket_port': port
