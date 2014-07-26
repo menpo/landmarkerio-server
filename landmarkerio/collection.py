@@ -2,7 +2,7 @@ from os.path import abspath, expanduser
 from pathlib import Path
 import abc
 
-from landmarkerio import ALL_COLLECTION_ID, COLLECTION_EXT, dirs_in_dir
+from landmarkerio import ALL_COLLECTION_ID, dirs_in_dir, FileExt
 
 
 def load_collection(path):
@@ -35,7 +35,7 @@ class FileCollectionAdapter(CollectionAdapter):
     def __init__(self, collection_dir):
         self.collection_dir = Path(abspath(expanduser(collection_dir)))
         print ('collections: {}'.format(self.collection_dir))
-        collection_paths = self.collection_dir.glob('*' + COLLECTION_EXT)
+        collection_paths = self.collection_dir.glob('*' + FileExt.collection)
         self._collection = {c.stem: load_collection(c)
                             for c in collection_paths}
 

@@ -23,7 +23,7 @@ def main(mode, asset_dir, recursive=False, ext=None, lm_dir=None,
     serve_with_cherrypy(app, port=port)
 
 
-from landmarkerio import (TEMPLATE_DINAME, CACHE_DIRNAME, LM_DIRNAME)
+from landmarkerio import TEMPLATE_DINAME, LM_DIRNAME
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -49,12 +49,15 @@ if __name__ == "__main__":
                              "'~/{}'".format(TEMPLATE_DINAME))
     parser.add_argument("--cache",
                         help="The directory used to cache assets for serving."
-                             " If None provided taken as './{}'. "
-                             "This cache is populated the first time the "
+                             " If None provided a temporary directory is "
+                             "used. This cache is populated the first time "
+                             "the "
                              "server is run. Subsequent runs verify the cache "
                              "but do not have to rebuild it. Once you have "
                              "finished annotating assets delete this folder "
-                             "to reclaim disk space.".format(CACHE_DIRNAME))
+                             "to reclaim disk space. Note that if this flag "
+                             "is not provided, the cache will have to be "
+                             "rebuilt every time the server is started.")
     parser.add_argument("-c", "--collections",
                         help="The directory containing the collection files. "
                              "If None provided an 'all' collection will be "

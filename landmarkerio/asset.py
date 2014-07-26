@@ -3,10 +3,7 @@ import os
 from pathlib import Path
 
 from flask import safe_join
-from landmarkerio import (IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
-                          THUMBNAIL_FILENAME, MESH_FILENAME,
-                          POINTS_FILENAME, NORMALS_FILENAME,
-                          TRILIST_FILENAME, TCOORDS_FILENAME)
+from landmarkerio import CacheFile
 
 
 class ImageAdapter(object):
@@ -71,15 +68,15 @@ class ImageCacheAdapter(CacheAdapter, ImageAdapter):
 
     def image_info(self, asset_id):
         return reduce(safe_join,
-                      (str(self.cache_dir), asset_id, IMAGE_INFO_FILENAME))
+                      (str(self.cache_dir), asset_id, CacheFile.image))
 
     def texture_file(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir),
-                                  asset_id, TEXTURE_FILENAME))
+                                  asset_id, CacheFile.texture))
 
     def thumbnail_file(self, asset_id):
         return reduce(safe_join,
-                      (str(self.cache_dir), asset_id, THUMBNAIL_FILENAME))
+                      (str(self.cache_dir), asset_id, CacheFile.thumbnail))
 
     def asset_ids(self):
         return self._image_asset_ids
@@ -95,23 +92,23 @@ class MeshCacheAdapter(CacheAdapter, MeshAdapter):
 
     def mesh_json(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  MESH_FILENAME))
+                                  CacheFile.mesh))
 
     def points(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  POINTS_FILENAME))
+                                  CacheFile.points))
 
     def normals(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  NORMALS_FILENAME))
+                                  CacheFile.normals))
 
     def trilist(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  TRILIST_FILENAME))
+                                  CacheFile.trilist))
 
     def tcoords(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  TCOORDS_FILENAME))
+                                  CacheFile.tcoords))
 
     def asset_ids(self):
         return self._mesh_asset_ids

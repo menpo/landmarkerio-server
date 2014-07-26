@@ -11,10 +11,7 @@ import menpo.io as mio
 from menpo.shape.mesh import TexturedTriMesh
 import numpy as np
 
-from landmarkerio import (CACHE_DIRNAME, IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
-                          THUMBNAIL_FILENAME, MESH_FILENAME,
-                          POINTS_FILENAME, NORMALS_FILENAME,
-                          TRILIST_FILENAME, TCOORDS_FILENAME)
+from landmarkerio import CacheFile
 
 
 def asset_id_for_path(fp):
@@ -87,9 +84,9 @@ def cache_image(cache_dir, path, asset_id):
 
 def _cache_image_for_id(cache_dir, asset_id, img):
     asset_cache_dir = p.join(cache_dir, asset_id)
-    image_info_path = p.join(asset_cache_dir, IMAGE_INFO_FILENAME)
-    texture_path = p.join(asset_cache_dir, TEXTURE_FILENAME)
-    thumbnail_path = p.join(asset_cache_dir, THUMBNAIL_FILENAME)
+    image_info_path = p.join(asset_cache_dir, CacheFile.image)
+    texture_path = p.join(asset_cache_dir, CacheFile.texture)
+    thumbnail_path = p.join(asset_cache_dir, CacheFile.thumbnail)
     ioinfo = img.ioinfo
 
     # WebGL only allows textures of maximum dimension 4096
@@ -136,7 +133,7 @@ def cache_mesh(cache_dir, path, asset_id):
 
 def _cache_mesh_for_id(cache_dir, asset_id, mesh):
     asset_cache_dir = p.join(cache_dir, asset_id)
-    mesh_path = p.join(asset_cache_dir, MESH_FILENAME)
+    mesh_path = p.join(asset_cache_dir, CacheFile.mesh)
     str_json = json.dumps(mesh.tojson())
     with gzip.open(mesh_path, mode='wb', compresslevel=1) as f:
         f.write(str_json)
@@ -146,17 +143,14 @@ def _cache_mesh_for_id(cache_dir, asset_id, mesh):
 
 def _export_raw_mesh(asset_cache_dir, m):
     x = Path(asset_cache_dir)
-    m.points.astype(np.float32).tofile(str(x / POINTS_FILENAME))
-    m.trilist.astype(np.uint32).tofile(str(x / TRILIST_FILENAME))
-    m.vertex_normals.astype(np.float32).tofile(str(x / NORMALS_FILENAME))
+    m.points.astype(np.float32).tofile(str(x / CacheFile.points))
+    m.trilist.astype(np.uint32).tofile(str(x / CacheFile.trilist))
+    m.vertex_normals.astype(np.float32).tofile(str(x / CacheFile.normals))
     if hasattr(m, 'tcoords'):
-        m.tcoords.points.astype(np.float32).tofile(str(x / TCOORDS_FILENAME))
+        m.tcoords.points.astype(np.float32).tofile(str(x / CacheFile.tcoords))
 
 
 def ensure_cache_dir(cache_dir):
-    if cache_dir is None:
-        # By default place the cache in the cwd
-        cache_dir = p.join(os.getcwd(), CACHE_DIRNAME)
     cache_dir = p.abspath(p.expanduser(cache_dir))
     if not p.isdir(cache_dir):
         print("Warning the cache dir does not exist - creating...")

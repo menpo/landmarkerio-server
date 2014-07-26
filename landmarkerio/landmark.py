@@ -6,7 +6,7 @@ from collections import defaultdict
 from flask import safe_join
 import glob
 
-from landmarkerio import LM_DIRNAME, LM_EXT
+from landmarkerio import LM_DIRNAME, FileExt
 
 
 class LmAdapter(object):
@@ -95,11 +95,11 @@ class FileLmAdapter(LmAdapter):
             return lm
 
     def _lm_fp(self, asset_id, lm_id):
-        return safe_join(safe_join(self.lm_dir, asset_id), lm_id + LM_EXT)
+        return safe_join(safe_join(self.lm_dir, asset_id), lm_id + FileExt.lm)
 
     def _lm_paths(self, asset_id=None):
         if asset_id is None:
             asset_id = '*'
         g = glob.glob(p.join(safe_join(self.lm_dir, asset_id), '*'))
         return filter(lambda f: p.isfile(f) and
-                                p.splitext(f)[-1] == LM_EXT, g)
+                                p.splitext(f)[-1] == FileExt.lm, g)

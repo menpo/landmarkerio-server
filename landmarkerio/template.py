@@ -5,7 +5,7 @@ from pathlib import Path
 from flask import safe_join
 import abc
 
-from landmarkerio import TEMPLATE_DINAME, TEMPLATE_EXT
+from landmarkerio import TEMPLATE_DINAME, FileExt
 
 
 Group = namedtuple('Group', ['label', 'n', 'index'])
@@ -90,9 +90,9 @@ class FileTemplateAdapter(TemplateAdapter):
         print ('templates: {}'.format(self.template_dir))
 
     def template_ids(self):
-        template_paths = self.template_dir.glob('*' + TEMPLATE_EXT)
+        template_paths = self.template_dir.glob('*' + FileExt.template)
         return [t.stem for t in template_paths]
 
     def template_json(self, lm_id):
-        fp = safe_join(str(self.template_dir), lm_id + TEMPLATE_EXT)
+        fp = safe_join(str(self.template_dir), lm_id + FileExt.template)
         return load_template(fp, self.n_dims)
