@@ -17,4 +17,9 @@ IMAGE_INFO_FILENAME = 'image.json'
 THUMBNAIL_FILENAME = 'thumbnail.jpg'
 MESH_FILENAME = 'mesh.json.gz'
 
+POINTS_FILENAME = 'points.blob'
+TRILIST_FILENAME = 'trilist.blob'
+NORMALS_FILENAME = 'normals.blob'
+TCOORDS_FILENAME = 'tcoords.blob'
+
 dirs_in_dir = lambda (path): [p for p in path.iterdir() if p.is_dir()]

@@ -4,7 +4,9 @@ from pathlib import Path
 
 from flask import safe_join
 from landmarkerio import (IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
-                          THUMBNAIL_FILENAME, MESH_FILENAME)
+                          THUMBNAIL_FILENAME, MESH_FILENAME,
+                          POINTS_FILENAME, NORMALS_FILENAME,
+                          TRILIST_FILENAME, TCOORDS_FILENAME)
 
 
 class ImageAdapter(object):
@@ -34,6 +36,22 @@ class MeshAdapter(object):
 
     @abc.abstractmethod
     def mesh_json(self, asset_id):
+        pass
+
+    @abc.abstractmethod
+    def points(self, asset_id):
+        pass
+
+    @abc.abstractmethod
+    def normals(self, asset_id):
+        pass
+
+    @abc.abstractmethod
+    def trilist(self, asset_id):
+        pass
+
+    @abc.abstractmethod
+    def tcoords(self, asset_id):
         pass
 
 
@@ -78,6 +96,22 @@ class MeshCacheAdapter(CacheAdapter, MeshAdapter):
     def mesh_json(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir), asset_id,
                                   MESH_FILENAME))
+
+    def points(self, asset_id):
+        return reduce(safe_join, (str(self.cache_dir), asset_id,
+                                  POINTS_FILENAME))
+
+    def normals(self, asset_id):
+        return reduce(safe_join, (str(self.cache_dir), asset_id,
+                                  NORMALS_FILENAME))
+
+    def trilist(self, asset_id):
+        return reduce(safe_join, (str(self.cache_dir), asset_id,
+                                  TRILIST_FILENAME))
+
+    def tcoords(self, asset_id):
+        return reduce(safe_join, (str(self.cache_dir), asset_id,
+                                  TCOORDS_FILENAME))
 
     def asset_ids(self):
         return self._mesh_asset_ids

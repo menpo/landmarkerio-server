@@ -12,7 +12,9 @@ from menpo.shape.mesh import TexturedTriMesh
 import numpy as np
 
 from landmarkerio import (CACHE_DIRNAME, IMAGE_INFO_FILENAME, TEXTURE_FILENAME,
-                          THUMBNAIL_FILENAME, MESH_FILENAME)
+                          THUMBNAIL_FILENAME, MESH_FILENAME,
+                          POINTS_FILENAME, NORMALS_FILENAME,
+                          TRILIST_FILENAME, TCOORDS_FILENAME)
 
 
 def asset_id_for_path(fp):
@@ -138,6 +140,17 @@ def _cache_mesh_for_id(cache_dir, asset_id, mesh):
     str_json = json.dumps(mesh.tojson())
     with gzip.open(mesh_path, mode='wb', compresslevel=1) as f:
         f.write(str_json)
+    # save out the raw arrays too
+    _export_raw_mesh(asset_cache_dir, mesh)
+
+
+def _export_raw_mesh(asset_cache_dir, m):
+    x = Path(asset_cache_dir)
+    m.points.astype(np.float32).tofile(str(x / POINTS_FILENAME))
+    m.trilist.astype(np.uint32).tofile(str(x / TRILIST_FILENAME))
+    m.vertex_normals.astype(np.float32).tofile(str(x / NORMALS_FILENAME))
+    if hasattr(m, 'tcoords'):
+        m.tcoords.points.astype(np.float32).tofile(str(x / TCOORDS_FILENAME))
 
 
 def ensure_cache_dir(cache_dir):
