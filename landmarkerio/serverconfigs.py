@@ -8,13 +8,13 @@ from landmarkerio.collection import (AllCacheCollectionAdapter,
                                      FileCollectionAdapter)
 from landmarkerio.asset import ImageCacheAdapter, MeshCacheAdapter
 
-from landmarkerio import LMIOServer
+from landmarkerio import Server
 
 
 def serve_with_cherrypy(app, port=5000):
     import cherrypy
     # Mount the WSGI callable object (app) on the root directory
-    cherrypy.tree.graft(app, LMIOServer.endpoint)
+    cherrypy.tree.graft(app, Server.endpoint)
     cherrypy.config.update({
         'server.socket_port': port
     })

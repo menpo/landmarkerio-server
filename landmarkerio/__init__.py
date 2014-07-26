@@ -18,9 +18,30 @@ class CacheFile(Enum):
     tcoords = 'tcoords.blob'
 
 
-class LMIOServer(Enum):
+class Server(Enum):
     origin = 'http://www.landmarker.io'
     endpoint = '/api/v1/'
+
+
+class Endpoints(Enum):
+    mode = 'mode'
+    images = 'images'
+    collections = 'collections'
+    landmarks = 'landmarks'
+    meshes = 'meshes'
+    templates = 'templates'
+    points = 'points'
+    trilist = 'trilist'
+    tcoords = 'tcoords'
+    normals = 'normals'
+    texture = 'texture'
+    thumbnail = 'thumbnails'
+
+
+class Mimetype(Enum):
+    json = 'application/json'
+    jpeg = 'image/jpeg'
+    binary = 'application/octet-stream'
 
 
 LM_DIRNAME = 'lmiolandmarks'

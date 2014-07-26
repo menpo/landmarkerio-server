@@ -1,15 +1,11 @@
-from enum import Enum
 from functools import partial
 from flask import Flask, request, send_file, make_response
 from flask.ext.restful import abort, Api, Resource
 from flask.ext.restful.utils import cors
-from landmarkerio import LMIOServer
+from landmarkerio import Server, Endpoints, Mimetype
 
-
-class Mimetype(Enum):
-    json = 'application/json'
-    jpeg = 'image/jpeg'
-    binary = 'application/octet-stream'
+url = lambda *x: '/' + '/'.join(x)
+asset = lambda f: partial(f, '<string:asset_id>')
 
 
 def safe_send(x, fail_message):
@@ -55,7 +51,7 @@ def lmio_api(dev=False):
     """
     app = Flask(__name__)
     api = Api(app)
-    origin = LMIOServer.origin
+    origin = Server.origin
     if dev:
         # in development mode, accept CORS from anyone
         origin = '*'
@@ -79,7 +75,7 @@ def add_mode_endpoint(api, mode):
         def get(self):
             return mode
 
-    api.add_resource(Mode, '/mode')
+    api.add_resource(Mode, url(Endpoints.mode))
 
 
 def add_lm_endpoints(api, adapter):
@@ -128,9 +124,10 @@ def add_lm_endpoints(api, adapter):
         def get(self, asset_id):
             return adapter.lm_ids(asset_id)
 
-    api.add_resource(LandmarkList, '/landmarks')
-    api.add_resource(LandmarkListForId, '/landmarks/<string:asset_id>')
-    api.add_resource(Landmark, '/landmarks/<string:asset_id>/<string:lm_id>')
+    lm_url = partial(url, Endpoints.landmarks)
+    api.add_resource(LandmarkList, lm_url())
+    api.add_resource(LandmarkListForId, asset(lm_url)())
+    api.add_resource(Landmark, asset(lm_url)('<string:lm_id>'))
 
 
 def add_template_endpoints(api, adapter):
@@ -146,8 +143,9 @@ def add_template_endpoints(api, adapter):
         def get(self):
             return adapter.template_ids()
 
-    api.add_resource(TemplateList, '/templates')
-    api.add_resource(Template, '/templates/<string:lm_id>')
+    templates_url = partial(url, Endpoints.templates)
+    api.add_resource(TemplateList, templates_url())
+    api.add_resource(Template, templates_url('<string:lm_id>'))
 
 
 def add_collection_endpoints(api, adapter):
@@ -163,8 +161,9 @@ def add_collection_endpoints(api, adapter):
         def get(self):
             return adapter.collection_ids()
 
-    api.add_resource(CollectionList, '/collections')
-    api.add_resource(Collection, '/collections/<string:collection_id>')
+    collections_url = partial(url, Endpoints.collections)
+    api.add_resource(CollectionList, collections_url())
+    api.add_resource(Collection, collections_url('<string:collection_id>'))
 
 
 def add_image_endpoints(api, adapter):
@@ -203,11 +202,15 @@ def add_image_endpoints(api, adapter):
             err = "{} does not have a thumbnail".format(asset_id)
             return image_file(adapter.thumbnail_file(asset_id), err)
 
-    api.add_resource(ImageList, '/images')
-    api.add_resource(Image, '/images/<string:asset_id>')
+    image_url = partial(url, Endpoints.images)
+    texture_url = partial(url, Endpoints.texture)
+    thumbnail_url = partial(url, Endpoints.thumbnail)
 
-    api.add_resource(Texture, '/textures/<string:asset_id>')
-    api.add_resource(Thumbnail, '/thumbnails/<string:asset_id>')
+    api.add_resource(ImageList, image_url())
+    api.add_resource(Image, asset(image_url)())
+
+    api.add_resource(Texture, asset(texture_url)())
+    api.add_resource(Thumbnail, asset(thumbnail_url)())
 
 
 def add_mesh_endpoints(api, adapter):
@@ -256,9 +259,12 @@ def add_mesh_endpoints(api, adapter):
         def get(self):
             return adapter.asset_ids()
 
-    api.add_resource(MeshList, '/meshes')
-    api.add_resource(Mesh, '/meshes/<string:asset_id>')
-    api.add_resource(Points, '/meshes/<string:asset_id>/points')
-    api.add_resource(Trilist, '/meshes/<string:asset_id>/trilist')
-    api.add_resource(Normals, '/meshes/<string:asset_id>/normals')
-    api.add_resource(Tcoords, '/meshes/<string:asset_id>/tcoords')
+    mesh_url = partial(url, Endpoints.meshes)
+    mesh_asset_url = asset(mesh_url)
+
+    api.add_resource(MeshList, mesh_url())
+    api.add_resource(Mesh, mesh_asset_url())
+    api.add_resource(Points, mesh_asset_url(Endpoints.points))
+    api.add_resource(Trilist, mesh_asset_url(Endpoints.trilist))
+    api.add_resource(Normals, mesh_asset_url(Endpoints.normals))
+    api.add_resource(Tcoords, mesh_asset_url(Endpoints.tcoords))
