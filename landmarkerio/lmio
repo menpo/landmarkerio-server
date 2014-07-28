@@ -2,7 +2,6 @@
 # encoding: utf-8
 import webbrowser
 import tempfile
-from os.path import abspath, expanduser
 
 from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
 from landmarkerio.serverconfigs import serve_from_cache, serve_with_cherrypy
@@ -16,7 +15,6 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
     """
     if cache_dir is None:
         cache_dir = tempfile.mkdtemp()
-    asset_dir = abspath(expanduser(asset_dir))
     identifier_f = filepath_as_asset_id_under_dir(asset_dir)
     _, asset_ids_to_path = cache_assets(mode, identifier_f, asset_dir,
                                         cache_dir, recursive=recursive,
@@ -31,7 +29,7 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
     serve_with_cherrypy(app, port=port)
 
 
-from landmarkerio import TEMPLATE_DINAME, LM_DIRNAME
+from landmarkerio import TEMPLATE_DINAME
 
 if __name__ == "__main__":
     from argparse import ArgumentParser

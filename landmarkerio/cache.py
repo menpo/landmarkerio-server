@@ -1,6 +1,7 @@
 import json
 import os
 import os.path as p
+from os.path import expanduser, abspath
 import shutil
 import gzip
 import struct
@@ -22,7 +23,7 @@ def filename_as_asset_id(fp):
 
 def filepath_as_asset_id_under_dir(asset_dir):
     # find the filepath under asset_dir and return the full path as an asset id
-    asset_dir = Path(asset_dir)
+    asset_dir = Path(abspath(expanduser(asset_dir)))
 
     def path_as_asset_id(fp):
         return '__'.join(Path(fp).relative_to(asset_dir).parts)

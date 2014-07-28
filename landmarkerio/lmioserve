@@ -3,6 +3,7 @@
 
 from landmarkerio.serverconfigs import serve_from_cache, serve_with_cherrypy
 from landmarkerio import TEMPLATE_DINAME
+from landmarkerio.landmark import SeparateDirFileLmAdapter
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -32,8 +33,8 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--port",
                         help="The port to host the server on. 5000 by default")
     ns = parser.parse_args()
-
-    app = serve_from_cache(ns.mode, ns.cache, lm_dir=ns.landmarks,
+    lm_adapter = SeparateDirFileLmAdapter(ns.landmarks)
+    app = serve_from_cache(ns.mode, ns.cache, lm_adapter,
                            template_dir=ns.templates,
                            collection_dir=ns.collections, dev=ns.dev)
     if ns.port is None:
