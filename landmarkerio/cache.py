@@ -216,7 +216,7 @@ def build_cache(cacher_f, asset_path_f, cache_f, asset_dir, recursive=False,
     if len(uncached) > 0:
         print('{} assets cached in {:.0f} seconds'.format(len(uncached),
                                                         elapsed))
-    return cache_dir
+    return cache_dir, asset_id_to_paths
 
 
 build_mesh_serial_cache = partial(build_cache, serial_cacher, mesh_paths,

@@ -1,6 +1,7 @@
 import abc
 import json
 import os.path as p
+from pathlib import Path
 import os
 from collections import defaultdict
 from flask import safe_join
@@ -43,6 +44,31 @@ class FileLmAdapter(LmAdapter):
     local filesystem.
     """
 
+    def load_lm(self, asset_id, lm_id):
+        fp = self.lm_fp(asset_id, lm_id)
+        if not p.isfile(fp):
+            raise IOError
+        with open(fp, 'rb') as f:
+            lm = json.load(f)
+            return lm
+
+    def save_lm(self, asset_id, lm_id, lm_json):
+        r"""
+        Persist a given landmark definition to disk.
+        """
+        fp = self.lm_fp(asset_id, lm_id)
+        with open(fp, 'wb') as f:
+            json.dump(lm_json, f, sort_keys=True, indent=4,
+                      separators=(',', ': '))
+
+    @abc.abstractmethod
+    def lm_fp(self, asset_id, lm_id):
+        # where a landmark should exist
+        pass
+
+
+class SeparateDirFileLmAdapter(FileLmAdapter):
+
     def __init__(self, lm_dir):
         if lm_dir is None:
             # By default place the landmarks in the cwd
@@ -51,7 +77,18 @@ class FileLmAdapter(LmAdapter):
         if not p.isdir(self.lm_dir):
             print("Warning the landmark dir does not exist - creating...")
             os.mkdir(self.lm_dir)
-        print ('landmarks: {}'.format(self.lm_dir))
+        print('landmarks: {}'.format(self.lm_dir))
+
+    def lm_fp(self, asset_id, lm_id):
+        # where a landmark should exist
+        return safe_join(safe_join(self.lm_dir, asset_id), lm_id + FileExt.lm)
+
+    def lm_ids(self, asset_id):
+        r"""
+        Return
+        """
+        lm_files = self._lm_paths(asset_id=asset_id)
+        return [p.splitext(p.split(f)[-1])[0] for f in lm_files]
 
     def asset_id_to_lm_id(self):
         r"""
@@ -67,12 +104,13 @@ class FileLmAdapter(LmAdapter):
             mapping[asset_id].append(lm_id)
         return mapping
 
-    def lm_ids(self, asset_id):
-        r"""
-        Return
-        """
-        lm_files = self._lm_paths(asset_id=asset_id)
-        return [p.splitext(p.split(f)[-1])[0] for f in lm_files]
+    def _lm_paths(self, asset_id=None):
+        # what landmarks do exist and where
+        if asset_id is None:
+            asset_id = '*'
+        g = glob.glob(p.join(safe_join(self.lm_dir, asset_id), '*'))
+        return filter(lambda f: p.isfile(f) and
+                                p.splitext(f)[-1] == FileExt.lm, g)
 
     def save_lm(self, asset_id, lm_id, lm_json):
         r"""
@@ -81,25 +119,36 @@ class FileLmAdapter(LmAdapter):
         subject_dir = safe_join(self.lm_dir, asset_id)
         if not p.isdir(subject_dir):
             os.mkdir(subject_dir)
-        fp = self._lm_fp(asset_id, lm_id)
-        with open(fp, 'wb') as f:
-            json.dump(lm_json, f, sort_keys=True, indent=4,
-                      separators=(',', ': '))
+        super(SeparateDirFileLmAdapter, self).save_lm(asset_id, lm_id, lm_json)
 
-    def load_lm(self, asset_id, lm_id):
-        fp = self._lm_fp(asset_id, lm_id)
-        if not p.isfile(fp):
-            raise IOError
-        with open(fp, 'rb') as f:
-            lm = json.load(f)
-            return lm
 
-    def _lm_fp(self, asset_id, lm_id):
-        return safe_join(safe_join(self.lm_dir, asset_id), lm_id + FileExt.lm)
+class InplaceFileLmAdapter(FileLmAdapter):
 
-    def _lm_paths(self, asset_id=None):
-        if asset_id is None:
-            asset_id = '*'
-        g = glob.glob(p.join(safe_join(self.lm_dir, asset_id), '*'))
-        return filter(lambda f: p.isfile(f) and
-                                p.splitext(f)[-1] == FileExt.lm, g)
+    def __init__(self, asset_ids_to_paths):
+        self.ids_to_paths = asset_ids_to_paths
+        print('landmarks served inplace - found {} asset with '
+              'landmarks'.format(len(self.asset_id_to_lm_id())))
+
+    def lm_ids(self, asset_id):
+        # always the same!
+        if asset_id in self.ids_to_paths:
+            return ['inplace']
+        else:
+            raise ValueError
+
+    def asset_id_to_lm_id(self):
+        r"""
+        Return a dict mapping asset ID's to landmark IDs that are
+        present on this server for that asset.
+        """
+        return {aid: ['inplace']
+                for aid in self.ids_to_paths
+                if self._lm_path_for_asset_id(aid).is_file()}
+
+    def lm_fp(self, asset_id, lm_id):
+        # note the lm_id is ignored. We just always return the .ljson file.
+        return str(self._lm_path_for_asset_id(asset_id))
+
+    def _lm_path_for_asset_id(self, asset_id):
+        asset_path = Path(self.ids_to_paths[asset_id])
+        return asset_path.parent / (asset_path.stem + '.ljson')

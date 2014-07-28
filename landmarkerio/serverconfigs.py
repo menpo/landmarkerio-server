@@ -3,7 +3,6 @@ from landmarkerio.server import (lmio_api, add_mode_endpoint, add_lm_endpoints,
                                  add_template_endpoints,
                                  add_collection_endpoints)
 from landmarkerio.template import FileTemplateAdapter
-from landmarkerio.landmark import FileLmAdapter
 from landmarkerio.collection import (AllCacheCollectionAdapter,
                                      FileCollectionAdapter)
 from landmarkerio.asset import ImageCacheAdapter, MeshCacheAdapter
@@ -25,7 +24,7 @@ def serve_with_cherrypy(app, port=5000):
     cherrypy.engine.block()
 
 
-def serve_from_cache(mode, cache_dir, lm_dir, template_dir=None,
+def serve_from_cache(mode, cache_dir, lm_adapter, template_dir=None,
                      collection_dir=None, dev=False):
     r"""
 
@@ -33,7 +32,7 @@ def serve_from_cache(mode, cache_dir, lm_dir, template_dir=None,
     api, app = lmio_api(dev=dev)
     if dev:
         app.debug = True
-    add_lm_endpoints(api, FileLmAdapter(lm_dir))
+    add_lm_endpoints(api, lm_adapter)
     # always serve at least images
     add_image_endpoints(api, ImageCacheAdapter(cache_dir))
     if mode == 'image':

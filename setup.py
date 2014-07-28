@@ -1,8 +1,8 @@
 from setuptools import setup
 from os.path import join
 
-setup(name='landmarkerio-server',
-      version='0.0.7',
+setup(name='landmarkerio',
+      version='0.1.0',
       description='Menpo-based server for www.landmarker.io',
       author='James Booth',
       author_email='james.booth08@imperial.ac.uk',
