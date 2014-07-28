@@ -11,13 +11,13 @@ over a simple RESTful API.
 
 Menpo is a tool that makes loading a huge variety of 2D and 3D data trivial.
 
-**landmarkerio-server** is an impliementation of the landmarker.io server API
+**landmarkerio-server** is an implementation of the landmarker.io server API
 in Python. It uses Menpo to load 2D and 3D assets, and serves them to
 landmarker.io for annotation. When the annotator is done, it's
 landmarkerio-server that will actually persist the landmarks to disk.
 
 landmarkerio-server is ideal for quick annotation jobs on a local machine.
-Once installed, just run the server (called `landmarkerio`) from the command
+Once installed, just run the server (called `lmio`) from the command
 line. Your browser will automatically open to www.landmarker.io, and detect
 the local server.
 
@@ -49,20 +49,20 @@ landmarkerio-server handles three different forms of data
 
 To begin annotating a folder of meshes, just run
 ```
->> landmarkerio ./path_to_mehes
+>> lmio ./path_to_mehes
 ```
 
 You get help on the tool just as you would expect
 
 ```
->> landmarkerio --help
+>> lmio --help
 ```
 
 ### Templates
 
 #### Syntax
 
-Templates restrict the set of allowed annotations and give the annotations 
+Templates restrict the set of allowed annotations and give the annotations
 semantic meaning. The user of the server has full control over what
 annotations the user of landmarker.io should complete by declaring *templates*.
 A template file is simple a `.txt` file. The filename is the name of the template.
@@ -98,7 +98,7 @@ We now annotate the file to explain the syntax:
 ```text
 mouth 6
 # The first landmark group is called 'mouth'
-# it is made up of six points 
+# it is made up of six points
 
 # A single line of whitespace seperates different
 # groups from each other
@@ -140,13 +140,13 @@ so the second block is not a legal template.
 #### Storing templates
 
 A collection of template files can be placed in a templates folder.
-A path to a folder can be provided as the `-t` argument to 
-`landmarkerio`. If no argument is provided, `landmarkerio` looks for
-the folder `~/.lmiotempates`. This provides a convienient place to 
+A path to a folder can be provided as the `-t` argument to
+`landmarkerio`. If no argument is provided, `lmio` looks for
+the folder `~/.lmiotempates`. This provides a convenient place to
 store frequently used templates.
 
 Finally, it should be noted that landmarkerio currently doesn't support
-switching templates (see 
+switching templates (see
 [landmarkerio#53](https://github.com/menpo/landmarker.io/issues/53)) and
 as a result only the first template alphabetically is used for the time
 being. This is only temporary.
