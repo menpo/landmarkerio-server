@@ -2,8 +2,9 @@
 # encoding: utf-8
 import webbrowser
 import tempfile
+from os.path import abspath, expanduser
 
-from landmarkerio.cache import cache_assets
+from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
 from landmarkerio.serverconfigs import serve_from_cache, serve_with_cherrypy
 from landmarkerio.landmark import InplaceFileLmAdapter
 
@@ -15,9 +16,11 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
     """
     if cache_dir is None:
         cache_dir = tempfile.mkdtemp()
-    _, asset_ids_to_path = cache_assets(mode, asset_dir, cache_dir,
-                                        recursive=recursive, ext=ext)
-    print asset_ids_to_path
+    asset_dir = abspath(expanduser(asset_dir))
+    identifier_f = filepath_as_asset_id_under_dir(asset_dir)
+    _, asset_ids_to_path = cache_assets(mode, identifier_f, asset_dir,
+                                        cache_dir, recursive=recursive,
+                                        ext=ext)
     # build an inplace adapter to serve landmarks found in-situ next to assets
     lm_adapter = InplaceFileLmAdapter(asset_ids_to_path)
     app = serve_from_cache(mode, cache_dir, lm_adapter,

@@ -15,14 +15,25 @@ import numpy as np
 from landmarkerio import CacheFile
 
 
-def asset_id_for_path(fp):
+def filename_as_asset_id(fp):
+    # simply return the filename as the asset_id
     return Path(fp).stem
 
 
-def build_asset_mapping(asset_paths_iter):
+def filepath_as_asset_id_under_dir(asset_dir):
+    # find the filepath under asset_dir and return the full path as an asset id
+    asset_dir = Path(asset_dir)
+
+    def path_as_asset_id(fp):
+        return '__'.join(Path(fp).relative_to(asset_dir).parts)
+
+    return path_as_asset_id
+
+
+def build_asset_mapping(identifier_f, asset_paths_iter):
     asset_mapping = {}
     for path in asset_paths_iter:
-        asset_id = asset_id_for_path(path)
+        asset_id = identifier_f(path)
         if asset_id in asset_mapping:
             raise RuntimeError(
                 "asset_id {} is not unique - links to {} and "
@@ -178,8 +189,8 @@ def parallel_cacher(cache, path_asset_id, n_jobs=-1):
                                        for path, asset_id in path_asset_id)
 
 
-def build_cache(cacher_f, asset_path_f, cache_f, asset_dir, recursive=False,
-                ext=None, cache_dir=None):
+def build_cache(cacher_f, asset_path_f, cache_f, identifier_f, asset_dir,
+                cache_dir, recursive=False, ext=None):
 
     # 1. Ensure the asset_dir and cache_dir are present.
     asset_dir = ensure_asset_dir(asset_dir)
@@ -199,7 +210,8 @@ def build_cache(cacher_f, asset_path_f, cache_f, asset_dir, recursive=False,
     glob_ptn = glob_pattern(ext_str, recursive)
 
     # Construct a mapping from id's to file paths
-    asset_id_to_paths = build_asset_mapping(asset_path_f(asset_dir, glob_ptn))
+    asset_id_to_paths = build_asset_mapping(identifier_f,
+                                            asset_path_f(asset_dir, glob_ptn))
 
     # Check cache for what needs to be updated
     asset_ids = set(asset_id_to_paths.iterkeys())
@@ -230,7 +242,8 @@ build_image_parallel_cache = partial(build_cache, parallel_cacher, image_paths,
                                      cache_image)
 
 
-def cache_assets(mode, asset_dir, cache_dir, recursive=False, ext=None):
+def cache_assets(mode, identifier_f, asset_dir, cache_dir, recursive=False,
+                 ext=None):
     r"""
 
     """
@@ -240,5 +253,5 @@ def cache_assets(mode, asset_dir, cache_dir, recursive=False, ext=None):
         cache_builder = build_mesh_parallel_cache
     else:
         raise ValueError("mode must be 'image' or 'mesh'")
-    return cache_builder(asset_dir, recursive=recursive, ext=ext,
-                         cache_dir=cache_dir)
+    return cache_builder(identifier_f, asset_dir, cache_dir,
+                         recursive=recursive, ext=ext)
