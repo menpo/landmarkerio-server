@@ -3,6 +3,7 @@ import os
 import os.path as p
 import shutil
 import gzip
+import struct
 from functools import partial
 from pathlib import Path
 import time
@@ -133,21 +134,24 @@ def cache_mesh(cache_dir, path, asset_id):
 
 def _cache_mesh_for_id(cache_dir, asset_id, mesh):
     asset_cache_dir = p.join(cache_dir, asset_id)
+    # to be removed
+    # mesh_json_path = p.join(asset_cache_dir, CacheFile.mesh_json)
+    # str_json = json.dumps(mesh.tojson())
+    # with gzip.open(mesh_json_path, mode='wb', compresslevel=1) as f:
+    #     f.write(str_json)
+    # save out the binary representation
     mesh_path = p.join(asset_cache_dir, CacheFile.mesh)
-    str_json = json.dumps(mesh.tojson())
-    with gzip.open(mesh_path, mode='wb', compresslevel=1) as f:
-        f.write(str_json)
-    # save out the raw arrays too
-    _export_raw_mesh(asset_cache_dir, mesh)
+    _export_raw_mesh(mesh_path, mesh)
 
 
-def _export_raw_mesh(asset_cache_dir, m):
-    x = Path(asset_cache_dir)
-    m.points.astype(np.float32).tofile(str(x / CacheFile.points))
-    m.trilist.astype(np.uint32).tofile(str(x / CacheFile.trilist))
-    m.vertex_normals.astype(np.float32).tofile(str(x / CacheFile.normals))
-    if hasattr(m, 'tcoords'):
-        m.tcoords.points.astype(np.float32).tofile(str(x / CacheFile.tcoords))
+def _export_raw_mesh(path, m):
+    is_textured = hasattr(m, 'tcoords')
+    with open(str(path), 'wb') as f:
+        f.write(struct.pack('II', is_textured, m.n_tris))
+        m.points[m.trilist].astype(np.float32).tofile(f)
+        m.vertex_normals[m.trilist].astype(np.float32).tofile(f)
+        if is_textured:
+            m.tcoords.points[m.trilist].astype(np.float32).tofile(f)
 
 
 def ensure_cache_dir(cache_dir):

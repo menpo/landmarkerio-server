@@ -203,7 +203,7 @@ def add_image_endpoints(api, adapter):
             return image_file(adapter.thumbnail_file(asset_id), err)
 
     image_url = partial(url, Endpoints.images)
-    texture_url = partial(url, Endpoints.texture)
+    texture_url = partial(url, Endpoints.textures)
     thumbnail_url = partial(url, Endpoints.thumbnail)
 
     api.add_resource(ImageList, image_url())
@@ -214,45 +214,12 @@ def add_image_endpoints(api, adapter):
 
 
 def add_mesh_endpoints(api, adapter):
-    r"""
-    Generate a Flask App that will serve images, landmarks and templates to
-    landmarker.io
 
-    Parameters
-    ----------
-    adapter: :class:`MeshLandmarkerIOAdapter`
-        Concrete implementation of the Image adapter. Will be queried for
-        all data to pass to landmarker.io.
-    """
     class Mesh(Resource):
 
         def get(self, asset_id):
             err = "{} is not an available mesh".format(asset_id)
-            return gzip_json_file(adapter.mesh_json(asset_id), err)
-
-    class Points(Resource):
-
-        def get(self, asset_id):
-            err = "{} does not have any points".format(asset_id)
-            return binary_file(adapter.points(asset_id), err)
-
-    class Trilist(Resource):
-
-        def get(self, asset_id):
-            err = "{} does not have a trilist".format(asset_id)
-            return binary_file(adapter.trilist(asset_id), err)
-
-    class Normals(Resource):
-
-        def get(self, asset_id):
-            err = "{} does not have normals".format(asset_id)
-            return binary_file(adapter.normals(asset_id), err)
-
-    class Tcoords(Resource):
-
-        def get(self, asset_id):
-            err = "{} does not have any tcoords".format(asset_id)
-            return binary_file(adapter.tcoords(asset_id), err)
+            return binary_file(adapter.mesh(asset_id), err)
 
     class MeshList(Resource):
 
@@ -264,7 +231,3 @@ def add_mesh_endpoints(api, adapter):
 
     api.add_resource(MeshList, mesh_url())
     api.add_resource(Mesh, mesh_asset_url())
-    api.add_resource(Points, mesh_asset_url(Endpoints.points))
-    api.add_resource(Trilist, mesh_asset_url(Endpoints.trilist))
-    api.add_resource(Normals, mesh_asset_url(Endpoints.normals))
-    api.add_resource(Tcoords, mesh_asset_url(Endpoints.tcoords))

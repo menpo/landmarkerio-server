@@ -11,11 +11,7 @@ class CacheFile(Enum):
     texture = 'texture.jpg'
     image = 'image.json'
     thumbnail = 'thumbnail.jpg'
-    mesh = 'mesh.json.gz'
-    points = 'points.blob'
-    trilist = 'trilist.blob'
-    normals = 'normals.blob'
-    tcoords = 'tcoords.blob'
+    mesh = 'mesh.blob'
 
 
 class Server(Enum):
@@ -34,7 +30,7 @@ class Endpoints(Enum):
     trilist = 'trilist'
     tcoords = 'tcoords'
     normals = 'normals'
-    texture = 'texture'
+    textures = 'textures'
     thumbnail = 'thumbnails'
 
 

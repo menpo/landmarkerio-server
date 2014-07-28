@@ -32,23 +32,11 @@ class ImageAdapter(object):
 class MeshAdapter(object):
 
     @abc.abstractmethod
-    def mesh_json(self, asset_id):
+    def asset_ids(self):
         pass
 
     @abc.abstractmethod
-    def points(self, asset_id):
-        pass
-
-    @abc.abstractmethod
-    def normals(self, asset_id):
-        pass
-
-    @abc.abstractmethod
-    def trilist(self, asset_id):
-        pass
-
-    @abc.abstractmethod
-    def tcoords(self, asset_id):
+    def mesh(self, asset_id):
         pass
 
 
@@ -63,7 +51,8 @@ class ImageCacheAdapter(CacheAdapter, ImageAdapter):
     def __init__(self, cache_dir):
         CacheAdapter.__init__(self, cache_dir)
         self._image_asset_ids = [a.parent.name
-                                 for a in self.cache_dir.glob("*/image.json")
+                                 for a in self.cache_dir.glob(os.path.join('*',
+                                                              CacheFile.image))
                                  if a.parent.parent == self.cache_dir]
 
     def image_info(self, asset_id):
@@ -87,28 +76,13 @@ class MeshCacheAdapter(CacheAdapter, MeshAdapter):
     def __init__(self, cache_dir):
         CacheAdapter.__init__(self, cache_dir)
         self._mesh_asset_ids = [a.parent.name
-                                for a in self.cache_dir.glob("*/mesh.json.gz")
+                                for a in self.cache_dir.glob(os.path.join('*',
+                                                             CacheFile.mesh))
                                 if a.parent.parent == self.cache_dir]
 
-    def mesh_json(self, asset_id):
+    def mesh(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir), asset_id,
                                   CacheFile.mesh))
-
-    def points(self, asset_id):
-        return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  CacheFile.points))
-
-    def normals(self, asset_id):
-        return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  CacheFile.normals))
-
-    def trilist(self, asset_id):
-        return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  CacheFile.trilist))
-
-    def tcoords(self, asset_id):
-        return reduce(safe_join, (str(self.cache_dir), asset_id,
-                                  CacheFile.tcoords))
 
     def asset_ids(self):
         return self._mesh_asset_ids
