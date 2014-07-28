@@ -11,7 +11,8 @@ class CacheFile(Enum):
     texture = 'texture.jpg'
     image = 'image.json'
     thumbnail = 'thumbnail.jpg'
-    mesh = 'mesh.blob'
+    mesh_tmp = 'mesh.raw.tmp'
+    mesh = 'mesh.raw.gz'
 
 
 class Server(Enum):

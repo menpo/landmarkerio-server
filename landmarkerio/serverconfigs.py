@@ -17,7 +17,8 @@ def serve_with_cherrypy(app, port=5000):
     # /api/v1)
     cherrypy.tree.graft(app, Server.endpoint)
     cherrypy.config.update({
-        'server.socket_port': port
+        'server.socket_port': port,
+        # 'server.socket_host': '0.0.0.0'
     })
     # Start the CherryPy WSGI web server
     cherrypy.engine.start()

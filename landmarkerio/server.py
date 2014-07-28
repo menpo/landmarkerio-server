@@ -30,6 +30,7 @@ image_file = partial(safe_send_file, Mimetype.jpeg)
 json_file = partial(safe_send_file, Mimetype.json)
 gzip_json_file = partial(safe_send_file, Mimetype.json, gzip=True)
 binary_file = partial(safe_send_file, Mimetype.binary)
+gzip_binary_file = partial(binary_file, gzip=True)
 
 
 def lmio_api(dev=False):
@@ -219,7 +220,7 @@ def add_mesh_endpoints(api, adapter):
 
         def get(self, asset_id):
             err = "{} is not an available mesh".format(asset_id)
-            return binary_file(adapter.mesh(asset_id), err)
+            return gzip_binary_file(adapter.mesh(asset_id), err)
 
     class MeshList(Resource):
 
