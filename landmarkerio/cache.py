@@ -160,11 +160,13 @@ def _cache_mesh_for_id(cache_dir, asset_id, mesh):
 
 
 def _export_raw_mesh(path, m):
+    normals = False  # for now we are just not exporting normals.
     is_textured = hasattr(m, 'tcoords')
     with open(str(path), 'wb') as f:
-        f.write(struct.pack('II', is_textured, m.n_tris))
+        f.write(struct.pack('IIII', m.n_tris, is_textured, normals, False))
         m.points[m.trilist].astype(np.float32).tofile(f)
-        m.vertex_normals[m.trilist].astype(np.float32).tofile(f)
+        if normals:
+            m.vertex_normals[m.trilist].astype(np.float32).tofile(f)
         if is_textured:
             m.tcoords.points[m.trilist].astype(np.float32).tofile(f)
 
