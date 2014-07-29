@@ -151,4 +151,4 @@ class InplaceFileLmAdapter(FileLmAdapter):
 
     def _lm_path_for_asset_id(self, asset_id):
         asset_path = Path(self.ids_to_paths[asset_id])
-        return asset_path.with_suffix('.ljson')
+        return asset_path.with_suffix(FileExt.lm)

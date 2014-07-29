@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class FileExt(Enum):
-    lm = '.json'
+    lm = '.ljson'
     template = '.txt'
     collection = '.txt'
 
