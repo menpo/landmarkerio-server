@@ -1,7 +1,8 @@
 from functools import partial
 from flask import Flask, request, send_file, make_response
 from flask.ext.restful import abort, Api, Resource
-from flask.ext.restful.utils import cors
+#from flask.ext.restful.utils import cors
+import cors  # until twilio/flask-restful/pull/276 is merged, see the package
 from landmarkerio import Server, Endpoints, Mimetype
 
 url = lambda *x: '/' + '/'.join(x)
@@ -61,7 +62,8 @@ def lmio_api(dev=False):
                                        headers=['Origin', 'X-Requested-With',
                                                 'Content-Type', 'Accept'],
                                        methods=['HEAD', 'GET', 'POST', 'PATCH',
-                                                'PUT', 'OPTIONS', 'DELETE'])]
+                                                'PUT', 'OPTIONS', 'DELETE'],
+                                       credentials=True)]
     return api, app
 
 

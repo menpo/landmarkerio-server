@@ -24,12 +24,10 @@ if __name__ == "__main__":
                              "will be cached.")
     ns = parser.parse_args()
     if ns.filename:
-        print ns.filename
-        print('using filename as asset_id')
+        print('Using filename as asset_id')
         identifier_f = filename_as_asset_id
     else:
-        print('using full path as asset_id')
+        print('Using full path as asset_id')
         identifier_f = filepath_as_asset_id_under_dir(ns.path)
-    print ns.recursive
     cache_assets(ns.mode, identifier_f, ns.path, ns.cache,
                  recursive=ns.recursive, ext=ns.ext)
