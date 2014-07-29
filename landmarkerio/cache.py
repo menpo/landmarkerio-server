@@ -193,7 +193,7 @@ def parallel_cacher(cache, path_asset_id, n_jobs=-1):
 
 
 def build_cache(cacher_f, asset_path_f, cache_f, identifier_f, asset_dir,
-                cache_dir, recursive=False, ext=None):
+                cache_dir, recursive=False, ext=None, glob=None):
 
     # 1. Ensure the asset_dir and cache_dir are present.
     asset_dir = ensure_asset_dir(asset_dir)
@@ -208,9 +208,13 @@ def build_cache(cacher_f, asset_path_f, cache_f, identifier_f, asset_dir,
               'loaded.'.format(ext_str))
     else:
         ext_str = ''
+    if glob is None:
+        # Figure out the glob pattern and save it
+        glob_ptn = glob_pattern(ext_str, recursive)
+    else:
+        glob_ptn = glob
 
-    # Figure out the glob pattern and save it
-    glob_ptn = glob_pattern(ext_str, recursive)
+    print('Using glob: "{}"'.format(glob_ptn))
 
     # Construct a mapping from id's to file paths
     asset_id_to_paths = build_asset_mapping(identifier_f,
@@ -246,7 +250,7 @@ build_image_parallel_cache = partial(build_cache, parallel_cacher, image_paths,
 
 
 def cache_assets(mode, identifier_f, asset_dir, cache_dir, recursive=False,
-                 ext=None):
+                 ext=None, glob=None):
     r"""
 
     """
@@ -257,4 +261,4 @@ def cache_assets(mode, identifier_f, asset_dir, cache_dir, recursive=False,
     else:
         raise ValueError("mode must be 'image' or 'mesh'")
     return cache_builder(identifier_f, asset_dir, cache_dir,
-                         recursive=recursive, ext=ext)
+                         recursive=recursive, ext=ext, glob=glob)

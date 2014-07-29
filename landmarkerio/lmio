@@ -9,7 +9,7 @@ from landmarkerio.landmark import InplaceFileLmAdapter
 
 
 def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
-         collection_dir=None, cache_dir=None, dev=False, port=5000):
+         collection_dir=None, cache_dir=None, dev=False, port=5000, glob=None):
     r"""
 
     """
@@ -18,7 +18,7 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
     identifier_f = filepath_as_asset_id_under_dir(asset_dir)
     _, asset_ids_to_path = cache_assets(mode, identifier_f, asset_dir,
                                         cache_dir, recursive=recursive,
-                                        ext=ext)
+                                        ext=ext, glob=glob)
     # build an inplace adapter to serve landmarks found in-situ next to assets
     lm_adapter = InplaceFileLmAdapter(asset_ids_to_path)
     app = serve_from_cache(mode, cache_dir, lm_adapter,
@@ -45,6 +45,10 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--ext",
                         help="If provided only files with this extension "
                              "will be imported.")
+    parser.add_argument('-g', '--glob',
+                        help="A custom (recursive) glob used for finding "
+                             "assets under the path. If provided --ext and "
+                             "--recursive flags are ignored")
     parser.add_argument("-t", "--templates",
                         help="The directory containing the template files. "
                              "If None provided taken as "
@@ -78,4 +82,4 @@ if __name__ == "__main__":
     ns = parser.parse_args()
     main(ns.mode, ns.path, recursive=ns.recursive, ext=ns.ext,
          template_dir=ns.templates, collection_dir=ns.collections,
-         cache_dir=ns.cache, dev=ns.dev, port=port)
+         cache_dir=ns.cache, dev=ns.dev, port=port, glob=ns.glob)
