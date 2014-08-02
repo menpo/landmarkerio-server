@@ -44,7 +44,10 @@ def group_to_json(group, n_dims):
 
 
 def groups_to_json(groups, n_dims):
-    lm_json = {'version': 1, 'groups': []}
+    lm_json = {
+        'version': 1,
+        'groups': []
+    }
     for g in groups:
         lm_json['groups'].append(group_to_json(g, n_dims))
     return lm_json
@@ -70,7 +73,7 @@ class TemplateAdapter(object):
         pass
 
     @abc.abstractmethod
-    def template_json(self, lm_id):
+    def load_template(self, lm_id):
         pass
 
 
@@ -90,9 +93,25 @@ class FileTemplateAdapter(TemplateAdapter):
         print ('templates: {}'.format(self.template_dir))
 
     def template_ids(self):
-        template_paths = self.template_dir.glob('*' + FileExt.template)
-        return [t.stem for t in template_paths]
+        return [t.stem for t in self.template_paths()]
 
-    def template_json(self, lm_id):
+    def template_paths(self):
+        return self.template_dir.glob('*' + FileExt.template)
+
+    def load_template(self, lm_id):
         fp = safe_join(str(self.template_dir), lm_id + FileExt.template)
         return load_template(fp, self.n_dims)
+
+
+class CachedFileTemplateAdapter(FileTemplateAdapter):
+
+    def __init__(self, n_dims, template_dir=None):
+        super(CachedFileTemplateAdapter,
+              self).__init__(n_dims, template_dir=template_dir)
+        self._cache = {lm_id: FileTemplateAdapter.load_template(self, lm_id)
+                       for lm_id in FileTemplateAdapter.template_ids(self)}
+        print('cached {} templates ({})'.format(
+            len(self._cache), ', '.join(self._cache.keys())))
+
+    def load_template(self, lm_id):
+            return self._cache[lm_id]

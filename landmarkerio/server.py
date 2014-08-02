@@ -81,7 +81,7 @@ def add_mode_endpoint(api, mode):
     api.add_resource(Mode, url(Endpoints.mode))
 
 
-def add_lm_endpoints(api, adapter):
+def add_lm_endpoints(api, lm_adapter, template_adapter):
     r"""
     Generate a Flask App that will serve meshes landmarks and templates to
     landmarker.io
@@ -103,11 +103,17 @@ def add_lm_endpoints(api, adapter):
 
         def get(self, asset_id, lm_id):
             err = "{} does not have {} landmarks".format(asset_id, lm_id)
-            return safe_send(adapter.load_lm(asset_id, lm_id), err)
+            try:
+                return lm_adapter.load_lm(asset_id, lm_id)
+            except Exception as e:
+                try:
+                    return template_adapter.load_template(lm_id)
+                except Exception as e:
+                    return abort(404, message=err)
 
         def put(self, asset_id, lm_id):
             try:
-                return adapter.save_lm(asset_id, lm_id, request.json)
+                return lm_adapter.save_lm(asset_id, lm_id, request.json)
             except Exception as e:
                 print(e)
                 return abort(409, message="{}:{} unable to "
@@ -120,12 +126,12 @@ def add_lm_endpoints(api, adapter):
     class LandmarkList(Resource):
 
         def get(self):
-            return adapter.asset_id_to_lm_id()
+            return lm_adapter.asset_id_to_lm_id()
 
     class LandmarkListForId(Resource):
 
         def get(self, asset_id):
-            return adapter.lm_ids(asset_id)
+            return lm_adapter.lm_ids(asset_id)
 
     lm_url = partial(url, Endpoints.landmarks)
     api.add_resource(LandmarkList, lm_url())
@@ -138,8 +144,8 @@ def add_template_endpoints(api, adapter):
     class Template(Resource):
 
         def get(self, lm_id):
-            err = "{} template not exist".format(lm_id)
-            return safe_send(adapter.template_json(lm_id), err)
+            err = "{} template does not exist".format(lm_id)
+            return safe_send(adapter.load_template(lm_id), err)
 
     class TemplateList(Resource):
 
