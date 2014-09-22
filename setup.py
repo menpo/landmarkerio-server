@@ -1,8 +1,20 @@
 from setuptools import setup
 from os.path import join
+import versioneer
+
+project_name = 'landmarkerio'
+
+# Versioneer allows us to automatically generate versioning from
+# our git tagging system which makes releases simpler.
+versioneer.VCS = 'git'
+versioneer.versionfile_source = '{}/_version.py'.format(project_name)
+versioneer.versionfile_build = '{}/_version.py'.format(project_name)
+versioneer.tag_prefix = 'v'  # tags are like v1.2.0
+versioneer.parentdir_prefix = project_name + '-'  # dirname like 'menpo-v1.2.0'
 
 setup(name='landmarkerio',
-      version='0.1.0',
+      version=versioneer.get_version(),
+      cmdclass=versioneer.get_cmdclass(),
       description='Menpo-based server for www.landmarker.io',
       author='James Booth',
       author_email='james.booth08@imperial.ac.uk',
