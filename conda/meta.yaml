@@ -1,0 +1,27 @@
+package:
+  name: landmarkerio
+  version: {{ environ['LANDMARKERIO_VERSION'] }}
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - python
+    - menpo
+    - numpy
+    - flask
+    - flask-restful
+    - cherrypy
+    - joblib
+    - enum  # [not py3k]
+    - pathlib  # [not py3k]
+
+test:
+  imports:
+    - landmarkerio
+
+about:
+  home: https://github.com/menpo/landmarkerio-server
+  license: BSD
