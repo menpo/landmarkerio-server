@@ -1,6 +1,6 @@
 [![PyPI Release](http://img.shields.io/pypi/v/landmarkerio-server.svg?style=flat)](https://pypi.python.org/pypi/landmarkerio-server)
 
-###The [Menpo](https://github.com/menpo/menpo)-powered [landmaker.io](https://github.com/menpo/landmarker.io) server
+###The [Menpo](https://github.com/menpo/menpo)-powered [landmarker.io](https://github.com/menpo/landmarker.io) server
 
 ###About
 
