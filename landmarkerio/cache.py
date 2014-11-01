@@ -9,7 +9,8 @@ from functools import partial
 from pathlib import Path
 import time
 
-import menpo.io as mio
+import menpo
+import menpo3d
 from menpo.shape.mesh import TexturedTriMesh
 import numpy as np
 
@@ -48,8 +49,8 @@ def build_asset_mapping(identifier_f, asset_paths_iter):
 def asset_paths(path_f, asset_dir, glob_pattern):
     return path_f(p.join(asset_dir, glob_pattern))
 
-mesh_paths = partial(asset_paths, mio.mesh_paths)
-image_paths = partial(asset_paths, mio.image_paths)
+mesh_paths = partial(asset_paths, menpo3d.io.mesh_paths)
+image_paths = partial(asset_paths, menpo.io.image_paths)
 
 
 def glob_pattern(ext_str, recursive):
@@ -91,7 +92,7 @@ def cache_asset(cache_dir, cache_f, path, asset_id):
 def cache_image(cache_dir, path, asset_id):
     r"""Actually cache this asset_id.
     """
-    img = mio.import_image(path)
+    img = menpo.io.import_image(path)
     _cache_image_for_id(cache_dir, asset_id, img)
 
 
@@ -138,7 +139,7 @@ def save_jpg_thumbnail_file(img, path, width=640):
 # MESH CACHING
 
 def cache_mesh(cache_dir, path, asset_id):
-    mesh = mio.import_mesh(path)
+    mesh = menpo3d.io.import_mesh(path)
     if isinstance(mesh, TexturedTriMesh):
         _cache_image_for_id(cache_dir, asset_id, mesh.texture)
     _cache_mesh_for_id(cache_dir, asset_id, mesh)

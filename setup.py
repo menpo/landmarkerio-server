@@ -14,7 +14,7 @@ versioneer.tag_prefix = 'v'  # tags are like v1.2.0
 versioneer.parentdir_prefix = project_name + '-'  # dirname like 'menpo-v1.2.0'
 
 install_requires = ['menpo>=0.3.0',
-                    'numpy>=1.8.1',
+                    'numpy>=1.9.0',
                     'Flask>=0.10.1',
                     'Flask-RESTful>=0.2.11',
                     'CherryPy>=3.5.0',
