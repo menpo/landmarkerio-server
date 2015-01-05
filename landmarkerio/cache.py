@@ -101,7 +101,7 @@ def _cache_image_for_id(cache_dir, asset_id, img):
     image_info_path = p.join(asset_cache_dir, CacheFile.image)
     texture_path = p.join(asset_cache_dir, CacheFile.texture)
     thumbnail_path = p.join(asset_cache_dir, CacheFile.thumbnail)
-    ioinfo = img.ioinfo
+    img_path = img.path
 
     # WebGL only allows textures of maximum dimension 4096
     ratio = 4096.0 / np.array(img.shape)
@@ -118,9 +118,9 @@ def _cache_image_for_id(cache_dir, asset_id, img):
         json.dump(image_info, f)
 
     # 2. Save out the image
-    if ioinfo.extension == '.jpg' and not had_to_shrink:
+    if img_path.suffix == '.jpg' and not had_to_shrink:
         # Original was a jpg that was suitable, save it
-        shutil.copyfile(ioinfo.filepath, texture_path)
+        shutil.copyfile(str(img_path), texture_path)
     else:
         # Original wasn't a jpg or was too big - make it so
         img.as_PILImage().save(texture_path, format='jpeg')
