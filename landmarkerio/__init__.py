@@ -46,7 +46,7 @@ TEMPLATE_DINAME = '.lmiotemplates'
 
 ALL_COLLECTION_ID = 'all'
 
-dirs_in_dir = lambda (path): [p for p in path.iterdir() if p.is_dir()]
+dirs_in_dir = lambda (path): sorted([p for p in path.iterdir() if p.is_dir()])
 
 from ._version import get_versions
 __version__ = get_versions()['version']
