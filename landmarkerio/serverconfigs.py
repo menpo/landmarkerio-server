@@ -10,15 +10,18 @@ from landmarkerio.asset import ImageCacheAdapter, MeshCacheAdapter
 from landmarkerio import Server
 
 
-def serve_with_cherrypy(app, port=5000):
+def serve_with_cherrypy(app, port=5000, public=False):
     import cherrypy
     # Mount the WSGI callable object (app) on the desired endpoint (e.g.
     # /api/v1)
     cherrypy.tree.graft(app, Server.endpoint)
-    cherrypy.config.update({
+    update_dict = {
         'server.socket_port': port,
-        # 'server.socket_host': '0.0.0.0'
-    })
+    }
+    if public:
+        update_dict['server.socket_host'] = '0.0.0.0'
+
+    cherrypy.config.update(update_dict)
     # Start the CherryPy WSGI web server
     cherrypy.engine.start()
     cherrypy.engine.block()

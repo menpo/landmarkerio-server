@@ -9,7 +9,8 @@ from landmarkerio.landmark import InplaceFileLmAdapter
 
 
 def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
-         collection_dir=None, cache_dir=None, dev=False, port=5000, glob=None):
+         collection_dir=None, cache_dir=None, dev=False, port=5000, public=False,
+         glob=None):
     r"""
 
     """
@@ -26,7 +27,7 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
                            collection_dir=collection_dir, dev=dev)
     if not dev and port == 5000:
         webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
-    serve_with_cherrypy(app, port=port)
+    serve_with_cherrypy(app, port=port, public=public)
 
 
 from landmarkerio import TEMPLATE_DINAME
@@ -71,6 +72,8 @@ if __name__ == "__main__":
     parser.add_argument("--dev", action='store_true',
                         help="Listen to all CORS requests. Useful for "
                              "development on localhost.")
+    parser.add_argument("--public", action='store_true',
+                        help="Listen to public requests (0.0.0.0).")
     parser.add_argument("-p", "--port",
                         help="The port to host the server on. 5000 by default")
     ns = parser.parse_args()
@@ -82,4 +85,5 @@ if __name__ == "__main__":
     ns = parser.parse_args()
     main(ns.mode, ns.path, recursive=ns.recursive, ext=ns.ext,
          template_dir=ns.templates, collection_dir=ns.collections,
-         cache_dir=ns.cache, dev=ns.dev, port=port, glob=ns.glob)
+         cache_dir=ns.cache, dev=ns.dev, port=port, public=ns.public,
+         glob=ns.glob)

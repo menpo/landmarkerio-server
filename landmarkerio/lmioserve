@@ -30,6 +30,8 @@ if __name__ == "__main__":
     parser.add_argument("--dev", action='store_true',
                         help="Listen to all CORS requests. Useful for "
                              "development on localhost")
+    parser.add_argument("--public", action='store_true',
+                        help="Listen to public requests (0.0.0.0).")
     parser.add_argument("-p", "--port",
                         help="The port to host the server on. 5000 by default")
     ns = parser.parse_args()
@@ -41,4 +43,4 @@ if __name__ == "__main__":
         port = 5000
     else:
         port = int(ns.port)
-    serve_with_cherrypy(app, port=port)
+    serve_with_cherrypy(app, port=port, public=ns.public)
