@@ -53,17 +53,21 @@ def lmio_api(dev=False):
     """
     app = Flask(__name__)
     api = Api(app)
-    origin = Server.origin
+
+    cors_dict = {
+        'origin': Server.origin,
+        'headers': ['Origin', 'X-Requested-With', 'Content-Type', 'Accept'],
+        'methods': ['HEAD', 'GET', 'POST', 'PATCH', 'PUT', 'OPTIONS', 'DELETE'],
+        'credentials': True
+    }
+
     if dev:
-        # in development mode, accept CORS from anyone
-        origin = '*'
+        # in development mode, accept CORS from anyone (but we can't use HTTPS)
+        cors_dict['origin'] = '*'
+        cors_dict['credentials'] = False
         app.debug = True
-    api.decorators = [cors.crossdomain(origin=origin,
-                                       headers=['Origin', 'X-Requested-With',
-                                                'Content-Type', 'Accept'],
-                                       methods=['HEAD', 'GET', 'POST', 'PATCH',
-                                                'PUT', 'OPTIONS', 'DELETE'],
-                                       credentials=True)]
+
+    api.decorators = [cors.crossdomain(**cors_dict)]
     return api, app
 
 
