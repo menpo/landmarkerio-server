@@ -12,7 +12,7 @@ requirements:
     - pathlib 1.0  # [py2k]
     - enum 0.4.4 # [py2k]
     - menpo 0.4.0a3
-    - menpo3d 0.1.0a2
+    - menpo3d 0.1.0a3
     - numpy
     - flask 0.10.1
     - flask-restful 0.2.12
