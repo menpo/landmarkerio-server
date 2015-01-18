@@ -11,12 +11,14 @@ over a simple RESTful API.
 
 Menpo is a tool that makes loading a huge variety of 2D and 3D data trivial.
 
-**landmarkerio-server** is an implementation of the landmarker.io server API
+**landmarkerio server** is an implementation of the landmarker.io server API
 in Python. It uses Menpo to load 2D and 3D assets, and serves them to
 landmarker.io for annotation. When the annotator is done, it's
-landmarkerio-server that will actually persist the landmarks to disk.
+landmarkerio server that will actually persist the landmarks to disk.
 
-landmarkerio-server is ideal for quick annotation jobs on a local machine.
+The Python package for landmarkerio server is just landmarkerio.
+
+landmarkerio is ideal for quick annotation jobs on a local machine.
 Once installed, just run the server (called `lmio`) from the command
 line. Your browser will automatically open to www.landmarker.io, and detect
 the local server.
@@ -26,19 +28,17 @@ SSH port tunnelling is an easy secure solution.
 
 ###Installation
 
-landmarkerio-server requires [Menpo](https://github.com/menpo/menpo) to run. By
-far the easiest way to install Menpo is via conda, see the Menpo wiki for
-installation instructions for OS X, Linux and Windows.
-
-Once you have Menpo, simply run
-
+landmarkerio server requires [Menpo](https://github.com/menpo/menpo)
+[Menpo3d](https://github.com/menpo/menpo) to run. As these have somewhat
+complex dependencies, by far the easiest way to install landmarkerio, is
+with conda. On OS X, Linux or Windows, just install conda and then 
 ```
->> pip install landmarkerio-server
+>> conda install -c menpo landmarkerio
 ```
 
 ###Important concepts
 
-landmarkerio-server handles three different forms of data
+landmarkerio server handles three different forms of data
 
 - assets - *meshes, textures and images*
 - landmarks - *annotations on assets*
