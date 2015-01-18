@@ -4,6 +4,7 @@
 from landmarkerio.serverconfigs import serve_from_cache, serve_with_cherrypy
 from landmarkerio import TEMPLATE_DINAME
 from landmarkerio.landmark import SeparateDirFileLmAdapter
+from landmarkerio.utils import parse_username_and_password_file
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -34,11 +35,22 @@ if __name__ == "__main__":
                         help="Listen to public requests (0.0.0.0).")
     parser.add_argument("-p", "--port",
                         help="The port to host the server on. 5000 by default")
+    parser.add_argument('-b', '--basicauth',
+                        help="Enable HTTP basic authentication using the "
+                             "username and password provided in the file "
+                             "at this path. The file should contain the "
+                             "username on the first line, the password on the "
+                             "second, and no other content.")
     ns = parser.parse_args()
     lm_adapter = SeparateDirFileLmAdapter(ns.landmarks)
+    if ns.basicauth is not None:
+        username, password = parse_username_and_password_file(ns.basicauth)
+    else:
+        username, password = None, None
     app = serve_from_cache(ns.mode, ns.cache, lm_adapter,
                            template_dir=ns.templates,
-                           collection_dir=ns.collections, dev=ns.dev)
+                           collection_dir=ns.collections, dev=ns.dev,
+                           username=username, password=password)
     if ns.port is None:
         port = 5000
     else:

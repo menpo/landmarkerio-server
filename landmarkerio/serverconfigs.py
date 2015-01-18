@@ -28,11 +28,12 @@ def serve_with_cherrypy(app, port=5000, public=False):
 
 
 def serve_from_cache(mode, cache_dir, lm_adapter, template_dir=None,
-                     collection_dir=None, dev=False):
+                     collection_dir=None, dev=False, username=None,
+                     password=None):
     r"""
 
     """
-    api, app = lmio_api(dev=dev)
+    api, app = lmio_api(dev=dev, username=username, password=password)
     if dev:
         app.debug = True
     # always serve at least images

@@ -1,5 +1,5 @@
-from functools import partial
-from flask import Flask, request, send_file, make_response
+from functools import partial, wraps
+from flask import Flask, request, send_file, make_response, Response
 from flask.ext.restful import abort, Api, Resource
 #from flask.ext.restful.utils import cors
 import cors  # until twilio/flask-restful/pull/276 is merged, see the package
@@ -34,7 +34,38 @@ binary_file = partial(safe_send_file, Mimetype.binary)
 gzip_binary_file = partial(binary_file, gzip=True)
 
 
-def lmio_api(dev=False):
+def basicauth(username, password):
+    r"""Returns a decorator that will validate the request for Basic Auth with
+    the provided username and password. Will return a 401 if the request
+    cannot be fullfilled.
+    """
+
+    def check_auth(username_test, password_test):
+        """This function is called to check if a username /
+        password combination is valid.
+        """
+        return username_test == username and password_test == password
+
+    def authenticate():
+        """Sends a 401 response that enables basic auth"""
+        return Response(
+            'Could not verify your access level for that URL.\n'
+            'You have to login with proper credentials', 401,
+            {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+    def requires_auth(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            auth = request.authorization
+            if not auth or not check_auth(auth.username, auth.password):
+                return authenticate()
+            return f(*args, **kwargs)
+        return decorated
+
+    return requires_auth
+
+
+def lmio_api(dev=False, username=None, password=None):
     r"""
     Generate a Flask App that will serve meshes landmarks and templates to
     landmarker.io
@@ -46,13 +77,20 @@ def lmio_api(dev=False):
         all data to pass to landmarker.io.
     dev: `bool`, optional
         If True, listen to anyone for CORS.
+    username : str, optional
+        If provided basic auth will be applied for this username. Requires
+        password to also be provided.
+    password : str, optional
+        If provided basic auth will be applied for this password. Requires
+        username to also be provided.
 
     Returns
     -------
     api, app, api_endpoint
     """
-    app = Flask(__name__)
-    api = Api(app)
+    app = Flask(__name__)  # create the flask app
+
+    # 1. configure CORS decorator
 
     cors_dict = {
         'origin': Server.origin,
@@ -67,7 +105,19 @@ def lmio_api(dev=False):
         cors_dict['credentials'] = False
         app.debug = True
 
-    api.decorators = [cors.crossdomain(**cors_dict)]
+    # create the cors decorator
+    decorators = [cors.crossdomain(**cors_dict)]
+
+    if username is not None and password is not None:
+        print('enabling basic auth')
+        # note the we cors is the last decorator -> the first that is hit. This
+        # is what we want as CORS will detect OPTIONS requests and allow them
+        # immediately. All other requests will be sent through the basicauth
+        # decorator.
+        decorators.insert(0, basicauth(username, password))
+
+    api = Api(app, decorators=decorators)
+
     return api, app
 
 
