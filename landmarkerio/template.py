@@ -55,7 +55,8 @@ def groups_to_json(groups, n_dims):
 
 def load_template(path, n_dims):
     with open(path, 'rb') as f:
-        ta = f.read().strip().split('\n\n')
+        txt = f.read()
+    ta = [l.strip() for l in txt.split('\n') if l.strip() != '']
     groups = [parse_group(g) for g in ta]
     return groups_to_json(groups, n_dims)
 
