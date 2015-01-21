@@ -54,9 +54,8 @@ def groups_to_json(groups, n_dims):
 
 
 def load_template(path, n_dims):
-    with open(path, 'rb') as f:
-        txt = f.read()
-    ta = [l.strip() for l in txt.split('\n') if l.strip() != '']
+    with open(path) as f:
+        ta = f.read().strip().split('\n\n')
     groups = [parse_group(g) for g in ta]
     return groups_to_json(groups, n_dims)
 
@@ -115,4 +114,4 @@ class CachedFileTemplateAdapter(FileTemplateAdapter):
             len(self._cache), ', '.join(self._cache.keys())))
 
     def load_template(self, lm_id):
-            return self._cache[lm_id]
+        return self._cache[lm_id]
