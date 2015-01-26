@@ -17,7 +17,7 @@ class CacheFile(Enum):
 
 class Server(Enum):
     origin = 'http://www.landmarker.io'
-    endpoint = '/api/v1/'
+    endpoint = '/api/v2/'
 
 
 class Endpoints(Enum):
