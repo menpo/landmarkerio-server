@@ -43,5 +43,6 @@ setup(name='landmarkerio',
       install_requires=install_requires,
       scripts=[join('landmarkerio', 'lmio'),
                join('landmarkerio', 'lmioserve'),
-               join('landmarkerio', 'lmiocache')]
+               join('landmarkerio', 'lmiocache'),
+               join('landmarkerio', 'lmioconvert')]
       )

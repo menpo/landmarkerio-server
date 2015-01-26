@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+from pathlib import Path
+from os import path as p
+import menpo
+
+
+def convert_all_under_path(path):
+    for ljson_p in path.glob('**/*.ljson'):
+        print('converting: {}'.format(ljson_p))
+        menpo.io.export_landmark_file(menpo.io.import_landmark_file(ljson_p),
+                                      ljson_p, overwrite=True)
+
+
+if __name__ == "__main__":
+    from argparse import ArgumentParser
+    parser = ArgumentParser(
+        description=r"""
+        Convert old LJSON files to v2
+        """)
+    parser.add_argument("path", help="path that will be recusively searched for LJSON files")
+    ns = parser.parse_args()
+    convert_all_under_path(Path(p.abspath(p.expanduser(ns.path))))
