@@ -50,11 +50,11 @@ def build_json(groups, n_dims):
     labels = []
     for g in groups:
         connectivity += [[j + offset for j in i] for i in g.index]
-        offset += g.n
         labels.append({
             'label': g.label,
             'mask': list(range(offset, offset + g.n))
         })
+        offset += g.n
 
     lm_json = {
         'labels': labels,
