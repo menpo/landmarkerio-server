@@ -43,13 +43,28 @@ def group_to_json(group, n_dims):
     return group_json
 
 
-def groups_to_json(groups, n_dims):
-    lm_json = {
-        'version': 1,
-        'groups': []
-    }
+def build_json(groups, n_dims):
+    n_points = sum(g.n for g in groups)
+    offset = 0
+    connectivity = []
+    labels = []
     for g in groups:
-        lm_json['groups'].append(group_to_json(g, n_dims))
+        connectivity += [[j + offset for j in i] for i in g.index]
+        labels.append({
+            'label': g.label,
+            'mask': list(range(offset, offset + g.n))
+        })
+        offset += g.n
+
+    lm_json = {
+        'labels': labels,
+        'landmarks': {
+            'connectivity': connectivity,
+            'points': [[None] * n_dims] * n_points
+        },
+        'version': 2,
+    }
+
     return lm_json
 
 
@@ -57,7 +72,7 @@ def load_template(path, n_dims):
     with open(path) as f:
         ta = f.read().strip().split('\n\n')
     groups = [parse_group(g) for g in ta]
-    return groups_to_json(groups, n_dims)
+    return build_json(groups, n_dims)
 
 
 class TemplateAdapter(object):
