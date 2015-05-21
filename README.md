@@ -47,9 +47,14 @@ landmarkerio server handles three different forms of data
 
 ###Usage
 
-To begin annotating a folder of meshes, just run
+The landmarker.io server can be started in one of two modes: 'image' and 'mesh'. To begin annotating a folder of meshes, just run
 ```
->> lmio ./path_to_mehes
+>> lmio mesh ./path_to_meshes
+```
+
+To begin annotating a folder of images, run
+```
+>> lmio image ./path_to_images
 ```
 
 You get help on the tool just as you would expect
