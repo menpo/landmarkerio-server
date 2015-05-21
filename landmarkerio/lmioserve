@@ -42,7 +42,8 @@ if __name__ == "__main__":
                              "username on the first line, the password on the "
                              "second, and no other content.")
     ns = parser.parse_args()
-    lm_adapter = SeparateDirFileLmAdapter(ns.landmarks)
+    lm_adapter = SeparateDirFileLmAdapter(ns.landmarks,
+                                          cache_dir=ns.cache, mode=ns.mode)
     if ns.basicauth is not None:
         username, password = parse_username_and_password_file(ns.basicauth)
     else:

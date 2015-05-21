@@ -21,7 +21,8 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
                                         cache_dir, recursive=recursive,
                                         ext=ext, glob=glob)
     # build an inplace adapter to serve landmarks found in-situ next to assets
-    lm_adapter = InplaceFileLmAdapter(asset_ids_to_path)
+    lm_adapter = InplaceFileLmAdapter(asset_ids_to_path,
+                                      cache_dir=cache_dir, mode=mode)
     app = serve_from_cache(mode, cache_dir, lm_adapter,
                            template_dir=template_dir,
                            collection_dir=collection_dir, dev=dev)
