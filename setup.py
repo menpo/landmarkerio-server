@@ -18,7 +18,8 @@ install_requires = ['menpo>=0.4.0,<0.5',
                     'Flask>=0.10.1',
                     'Flask-RESTful>=0.2.12',
                     'CherryPy>=3.6.0',
-                    'joblib>=0.8.4']
+                    'joblib>=0.8.4',
+                    'PyYaml>=3.11']
 
 if sys.version_info.major == 2:
     install_requires.extend(['enum>=0.4.4', 'pathlib>=1.0'])

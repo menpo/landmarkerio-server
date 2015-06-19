@@ -4,11 +4,59 @@ import os.path as p
 from pathlib import Path
 from flask import safe_join
 import abc
+import yaml
 
 from landmarkerio import TEMPLATE_DINAME, FileExt
 
 
 Group = namedtuple('Group', ['label', 'n', 'index'])
+
+
+def parse_connectivity(index_lst, n):
+    index = []
+    for i in index_lst:
+        if ':' in i:
+            # User is providing a slice
+            start, end = (int(x) for x in i.split(':'))
+            index.extend([x, x+1] for x in xrange(start, end))
+        else:
+            # Just a standard pair of numbers
+            index.append([int(j) for j in i.split(' ')])
+
+    indexes = set(itertools.chain.from_iterable(index))
+    if len(index) > 0 and (min(indexes) < 0 or max(indexes) > n):
+        raise ValueError("invalid connectivity")
+
+    return index
+
+
+def load_yaml_template(filepath, n_dims):
+    with open(filepath) as f:
+        data = yaml.load(f.read())
+        groups = []
+
+        for label, group in data.iteritems():
+
+            # Simple case with only a length
+            if isinstance(group, (int, str)):
+                groups.append(Group(label, int(group), []))
+                continue
+
+            n = group['points']
+            connectivity = group.get('connectivity', [])
+
+            if isinstance(connectivity, list):
+                index = parse_connectivity(connectivity, n)
+            elif connectivity is 'circular' or 'cycle':
+                index = parse_connectivity(
+                    ['0:%d' % (n - 1), '%d 0' % (n - 1)], n)
+            else:
+                # Couldn't parse connectivity, safe default
+                index = []
+
+            groups.append(Group(label, n, index))
+
+    return build_json(groups, n_dims)
 
 
 def parse_group(group):
@@ -19,18 +67,7 @@ def parse_group(group):
     index_str = x[1:]
     if len(index_str) == 0:
         return Group(label, n, [])
-    index = []
-    for i in index_str:
-        if ':' in i:
-            # User is providing a slice
-            start, end = (int(x) for x in i.split(':'))
-            index.extend([x, x+1] for x in xrange(start, end))
-        else:
-            # Just a standard pair of numbers
-            index.append([int(j) for j in i.split(' ')])
-    indexes = set(itertools.chain.from_iterable(index))
-    if min(indexes) < 0 or max(indexes) > n:
-        raise ValueError("invalid connectivity")
+    index = parse_connectivity(index_str, n)
     return Group(label, n, index)
 
 
@@ -68,11 +105,18 @@ def build_json(groups, n_dims):
     return lm_json
 
 
-def load_template(path, n_dims):
+def load_legacy_template(path, n_dims):
     with open(path) as f:
         ta = f.read().strip().split('\n\n')
     groups = [parse_group(g) for g in ta]
     return build_json(groups, n_dims)
+
+
+def load_template(path, n_dims):
+    if path.endswith('yaml') or path.endswith('yml'):
+        return load_yaml_template(path, n_dims)
+    else:
+        return load_legacy_template(path, n_dims)
 
 
 class TemplateAdapter(object):
