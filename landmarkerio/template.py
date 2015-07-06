@@ -33,16 +33,23 @@ def parse_connectivity(index_lst, n):
 def load_yaml_template(filepath, n_dims):
     with open(filepath) as f:
         data = yaml.load(f.read())
+
+        if 'groups' in data:
+            raw_groups = data['groups']
+        elif 'template' in data:
+            raw_groups = data['template']
+        else:
+            raise KeyError(
+                "Missing 'groups' or 'template' key in yaml file %s"
+                % filepath)
+
         groups = []
 
-        for label, group in data.iteritems():
+        for group, index in enumerate(raw_groups):
 
-            # Simple case with only a length
-            if isinstance(group, (int, str)):
-                groups.append(Group(label, int(group), []))
-                continue
+            label = group.get('label', index)  # Allow simple ordered groups
 
-            n = group['points']
+            n = group['points']  # Should raise KeyError by design if missing
             connectivity = group.get('connectivity', [])
 
             if isinstance(connectivity, list):
@@ -51,8 +58,7 @@ def load_yaml_template(filepath, n_dims):
                 index = parse_connectivity(
                     ['0:%d' % (n - 1), '%d 0' % (n - 1)], n)
             else:
-                # Couldn't parse connectivity, safe default
-                index = []
+                index = []  # Couldn't parse connectivity, safe default
 
             groups.append(Group(label, n, index))
 
