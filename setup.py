@@ -3,16 +3,6 @@ from os.path import join
 import sys
 import versioneer
 
-project_name = 'landmarkerio'
-
-# Versioneer allows us to automatically generate versioning from
-# our git tagging system which makes releases simpler.
-versioneer.VCS = 'git'
-versioneer.versionfile_source = '{}/_version.py'.format(project_name)
-versioneer.versionfile_build = '{}/_version.py'.format(project_name)
-versioneer.tag_prefix = 'v'  # tags are like v1.2.0
-versioneer.parentdir_prefix = project_name + '-'  # dirname like 'menpo-v1.2.0'
-
 install_requires = ['menpo>=0.4.0,<0.5',
                     'menpo3d>=0.1.0,<0.2',
                     'Flask>=0.10.1',
