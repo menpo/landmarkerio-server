@@ -36,8 +36,6 @@ def load_yaml_template(filepath, n_dims):
 
         if 'groups' in data:
             raw_groups = data['groups']
-        elif 'template' in data:
-            raw_groups = data['template']
         else:
             raise KeyError(
                 "Missing 'groups' or 'template' key in yaml file %s"
@@ -54,7 +52,7 @@ def load_yaml_template(filepath, n_dims):
 
             if isinstance(connectivity, list):
                 index = parse_connectivity(connectivity, n)
-            elif connectivity is 'circular' or 'cycle':
+            elif connectivity is 'cycle':
                 index = parse_connectivity(
                     ['0:%d' % (n - 1), '%d 0' % (n - 1)], n)
             else:
