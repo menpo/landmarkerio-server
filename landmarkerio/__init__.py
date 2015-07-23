@@ -3,7 +3,7 @@ from enum import Enum
 
 class FileExt(Enum):
     lm = '.ljson'
-    template = '.txt'
+    template = '.yml'
     collection = '.txt'
 
 

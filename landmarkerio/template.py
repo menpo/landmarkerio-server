@@ -43,7 +43,7 @@ def load_yaml_template(filepath, n_dims):
 
         groups = []
 
-        for group, index in enumerate(raw_groups):
+        for index, group in enumerate(raw_groups):
 
             label = group.get('label', index)  # Allow simple ordered groups
 
