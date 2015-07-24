@@ -93,15 +93,14 @@ def lmio_api(dev=False, username=None, password=None):
     # 1. configure CORS decorator
 
     cors_dict = {
-        'origin': Server.origin,
+        'allowed_origins': Server.allowed_origins,
         'headers': ['Origin', 'X-Requested-With', 'Content-Type', 'Accept'],
         'methods': ['HEAD', 'GET', 'POST', 'PATCH', 'PUT', 'OPTIONS', 'DELETE'],
         'credentials': True
     }
 
     if dev:
-        # in development mode, accept CORS from anyone (but we can't use HTTPS)
-        cors_dict['origin'] = '*'
+        # in development mode we can't use basic auth
         cors_dict['credentials'] = False
         app.debug = True
 

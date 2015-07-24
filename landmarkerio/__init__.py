@@ -16,7 +16,9 @@ class CacheFile(Enum):
 
 
 class Server(Enum):
-    origin = 'http://www.landmarker.io'
+    allowed_origins = ['https://www.landmarker.io',      # secure client
+                       'http://localhost:4000',          # client development
+                       'http://insecure.landmarker.io']  # legacy client
     endpoint = '/api/v2/'
 
 
