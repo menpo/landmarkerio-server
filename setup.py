@@ -36,3 +36,4 @@ setup(name='landmarkerio',
                join('landmarkerio', 'lmiocache'),
                join('landmarkerio', 'lmioconvert')]
       )
+
