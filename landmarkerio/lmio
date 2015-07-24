@@ -25,8 +25,8 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
     app = serve_from_cache(mode, cache_dir, lm_adapter,
                            template_dir=template_dir,
                            collection_dir=collection_dir, dev=dev)
-    if not dev and port == 5000:
-        webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
+    if not dev:
+        webbrowser.open("http://insecure.landmarker.io/#server=http%3A%2F%2Flocalhost%3A{}".format(port))
     serve_with_cherrypy(app, port=port, public=public)
 
 
