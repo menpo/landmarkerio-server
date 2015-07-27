@@ -197,7 +197,7 @@ class FileTemplateAdapter(TemplateAdapter):
                 "({}).\n" +
                 "See https://github.com/menpo/landmarkerio-server#templates " +
                 "more information. You can restart with the " +
-                "'--rewrite-templates' flag to convert them automatically " +
+                "'--upgrade-templates' flag to convert them automatically " +
                 "(one time operation)\n"
             ).format(
                 len(old_ids),
