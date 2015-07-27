@@ -4,24 +4,58 @@
 
 ###About
 
-Landmarker.io is a web app for annotating 2D and 3D assets. It has no
-dependencies beyond on a modern browser, so it's trivial to set-up for
-annotators. It expects to talk to a server that provides assets and annotations
-over a simple RESTful API.
-
-Menpo is a tool that makes loading a huge variety of 2D and 3D data trivial.
-
 **landmarkerio server** is an implementation of the landmarker.io server API
-in Python. It uses Menpo to load 2D and 3D assets, and serves them to
-landmarker.io for annotation. When the annotator is done, it's
-landmarkerio server that will actually persist the landmarks to disk.
+in Python. It uses Menpo to load images and meshes and serves them to
+landmarker.io web clients for annotation. When the annotator is done, 
+it is landmarkerio server that will actually persist the landmarks to disk.
 
-The Python package for landmarkerio server is just landmarkerio.
+The Python package for landmarkerio server is unambigously `landmarkerio`.
 
-landmarkerio is ideal for quick annotation jobs on a local machine.
-Once installed, just run the server (called `lmio`) from the command
-line. Your browser will automatically open to www.landmarker.io, and detect
-the local server.
+###Purpose
+
+[landmarker.io](https://github.com/menpo/landmarker.io) is a web app 
+for annotating 2D and 3D assets. It has no dependencies beyond on a modern browser, 
+so it's trivial to use. 
+
+Landmarker.io can work in a standalone fashion, directly
+loading assets from Dropbox or, in the case of [Landmarker.app](https://github.com/menpo/landmarker-app/), loading
+assets directly from a users filesystem. However, sometimes it is
+desirable to run an annotation experiment in a centralised, ordered
+fashion. As an example, you may have thousands of 3D meshes that need
+annotating, and you want to use a service like 
+[Mechanical Turk](https://www.mturk.com/mturk/welcome) to recruit
+annotators to get the job done. Trying to run such an experiment in an
+uncentralised way would perhaps look something like this:
+
+1. Divide up all the assets into subsets.
+2. Provide each annotator with a folder full of assets and ask them to place the assets in Dropbox or in their local filesystem
+3. Ask them to visit landmarker.io and login with their Dropbox account, or download and install Landmarker.app
+4. Provide instructions on how to find the assets using landmarker.io
+5. Ask the annotator to send you back the annotation files once they are done.
+
+However, this is clearly problematic. The process to get an annotator to even start
+annotating is far too complex and error prone. Such a system is very inflexible - if you
+just want to ask an annotator to complete one more mesh, you have to send them the mesh
+somehow for annotation.
+
+landmarkerio server is designed for exactly these scenarios. landmarker.io knowns
+how to talk to landmarkerio server instances over a RESTful API. The server
+holds all assets and landmarks, and users can be constrained in what they can and can't
+do. For instance - you can limit the choice of templates that users are able to use,
+or the assets that they see. Upon saving, landmarks are saved back to the server instance,
+so at all times you remain in control of the annotation experiement.
+
+###Serving assets locally
+
+landmarkerio server can be used for annotation jobs on a local machine, **but
+it is not recommend**. Consider just using landmarker.io's Dropbox mode, or 
+Landmarker.app instead.
+
+If you do want to do local annoations with landmarkerio-server,
+just run the server (called `lmio`) from the command
+line. Your browser will automatically open to insecure.landmarker.io and 
+you can start landmarking. See [#17](https://github.com/menpo/landmarkerio-server/issues/17)
+for an indepth discussion on why this is on the 'insecure' subdomain.
 
 You can get as clever as you want to enable remote serving of landmarks -
 SSH port tunnelling is an easy secure solution.
