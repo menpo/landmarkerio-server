@@ -17,6 +17,7 @@ requirements:
     - flask-restful 0.2.12
     - cherrypy 3.6.0
     - joblib 0.8.4
+    - pyyaml 3.11
 
 test:
   imports:
