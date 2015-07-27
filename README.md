@@ -152,3 +152,4 @@ A path to a folder can be provided as the `-t` argument to
 `landmarkerio`. If no argument is provided, `lmio` looks for
 the folder `~/.lmiotempates`. This provides a convenient place to
 store frequently used templates.
+
