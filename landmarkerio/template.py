@@ -116,11 +116,30 @@ def load_legacy_template(path, n_dims):
     return build_json(groups, n_dims)
 
 
+def group_to_dict(g):
+    data = {'label': g.label, 'points': g.n}
+    if g.index:
+        data['connectivity'] = ['{} {}'.format(c[0], c[1]) for c in g.index]
+    return data
+
+
+def convert_legacy_template(path):
+    with open(path) as f:
+        ta = f.read().strip().split('\n\n')
+    groups = [parse_group(g) for g in ta]
+    data = {'groups': [group_to_dict(g) for g in groups]}
+
+    new_path = path[:-3] + 'yml'
+    if p.isfile(new_path):
+        new_path = path[:-4] + '-converted.yml'
+    with open(new_path, 'w') as nf:
+        yaml.dump(data, nf, indent=4,  default_flow_style=False)
+
+    print "- {} > {}".format(path, new_path)
+
+
 def load_template(path, n_dims):
-    if path.endswith('yaml') or path.endswith('yml'):
-        return load_yaml_template(path, n_dims)
-    else:
-        return load_legacy_template(path, n_dims)
+    return load_yaml_template(path, n_dims)
 
 
 class TemplateAdapter(object):
@@ -155,6 +174,30 @@ class FileTemplateAdapter(TemplateAdapter):
         self.template_dir = Path(p.abspath(p.expanduser(template_dir)))
         print ('templates: {}'.format(self.template_dir))
 
+    def handle_old_templates(self, rewrite_templates=False):
+        old_ids = [t.stem for t
+                   in self.template_dir.glob('*' + FileExt.old_template)]
+        if len(old_ids) > 0 and rewrite_templates:
+            print "Converting {} old style templates".format(len(old_ids))
+            for lm_id in old_ids:
+                fp = safe_join(str(self.template_dir),
+                               lm_id + FileExt.old_template)
+                convert_legacy_template(fp)
+
+        elif len(old_ids) > 0:
+            print((
+                "\nWARNING: ignored {} old style '.txt' templates in '{}' " +
+                "({}).\n" +
+                "See https://github.com/menpo/landmarkerio-server#templates " +
+                "more information. You can restart with the " +
+                "'--rewrite-templates' flag to convert them automatically " +
+                "(one time operation)\n"
+            ).format(
+                len(old_ids),
+                self.template_dir,
+                ", ".join(['{}.txt'.format(t) for t in old_ids]))
+            )
+
     def template_ids(self):
         return [t.stem for t in self.template_paths()]
 
@@ -168,9 +211,17 @@ class FileTemplateAdapter(TemplateAdapter):
 
 class CachedFileTemplateAdapter(FileTemplateAdapter):
 
-    def __init__(self, n_dims, template_dir=None):
-        super(CachedFileTemplateAdapter,
-              self).__init__(n_dims, template_dir=template_dir)
+    def __init__(self, n_dims, template_dir=None, rewrite_templates=False):
+        super(CachedFileTemplateAdapter, self).__init__(
+            n_dims,
+            template_dir=template_dir
+        )
+
+        # Handle those before generating cache as we want to load them if
+        # rewrite_templates is True
+        FileTemplateAdapter.handle_old_templates(
+            self, rewrite_templates=rewrite_templates)
+
         self._cache = {lm_id: FileTemplateAdapter.load_template(self, lm_id)
                        for lm_id in FileTemplateAdapter.template_ids(self)}
         print('cached {} templates ({})'.format(

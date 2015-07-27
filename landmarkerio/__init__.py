@@ -4,6 +4,7 @@ from enum import Enum
 class FileExt(Enum):
     lm = '.ljson'
     template = '.yml'
+    old_template = '.txt'
     collection = '.txt'
 
 

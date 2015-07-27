@@ -41,14 +41,19 @@ if __name__ == "__main__":
                              "at this path. The file should contain the "
                              "username on the first line, the password on the "
                              "second, and no other content.")
+    parser.add_argument('--rewrite_templates', action='store_true',
+                        help="Rewrite old .txt template to the new .yml"
+                             "format")
     ns = parser.parse_args()
     lm_adapter = SeparateDirFileLmAdapter(ns.landmarks)
     if ns.basicauth is not None:
         username, password = parse_username_and_password_file(ns.basicauth)
     else:
         username, password = None, None
+
     app = serve_from_cache(ns.mode, ns.cache, lm_adapter,
                            template_dir=ns.templates,
+                           rewrite_templates=ns.rewrite_templates,
                            collection_dir=ns.collections, dev=ns.dev,
                            username=username, password=password)
     if ns.port is None:
