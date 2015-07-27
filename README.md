@@ -74,7 +74,7 @@ A template file is simple a `.yml` file. The filename is the name of the templat
 
 An example template is provided below, a [more detailed specification](https://github.com/menpo/landmarker.io/wiki/Templates-specification) is also available on the landmarker.io wiki.
 
-**`face.txt`**
+**`face.yaml`**
 ```face.yaml
 # groups key marks the template itself, anything else is metadata
 groups:
