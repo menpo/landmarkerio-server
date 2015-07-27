@@ -28,7 +28,7 @@ def serve_with_cherrypy(app, port=5000, public=False):
 
 
 def serve_from_cache(mode, cache_dir, lm_adapter, template_dir=None,
-                     rewrite_templates=False, collection_dir=None, dev=False,
+                     upgrade_templates=False, collection_dir=None, dev=False,
                      username=None, password=None):
     r"""
 
@@ -48,7 +48,7 @@ def serve_from_cache(mode, cache_dir, lm_adapter, template_dir=None,
         raise ValueError("mode must be 'image' or 'mesh'")
     add_mode_endpoint(api, mode)
     template_adapter = CachedFileTemplateAdapter(
-        n_dims, template_dir=template_dir, rewrite_templates=rewrite_templates)
+        n_dims, template_dir=template_dir, upgrade_templates=upgrade_templates)
     add_template_endpoints(api, template_adapter)
     add_lm_endpoints(api, lm_adapter, template_adapter)
     if collection_dir is not None:

@@ -10,7 +10,7 @@ from landmarkerio import TEMPLATE_DINAME
 
 
 def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
-         collection_dir=None, cache_dir=None, dev=False, port=5000, public=False, rewrite_templates=False,
+         collection_dir=None, cache_dir=None, dev=False, port=5000, public=False, upgrade_templates=False,
          glob=None):
     r"""
 
@@ -25,7 +25,7 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
     lm_adapter = InplaceFileLmAdapter(asset_ids_to_path)
     app = serve_from_cache(mode, cache_dir, lm_adapter,
                            template_dir=template_dir,
-                           rewrite_templates=rewrite_templates,
+                           upgrade_templates=upgrade_templates,
                            collection_dir=collection_dir, dev=dev)
     if not dev and port == 5000:
         webbrowser.open("http://www.landmarker.io/?mode={}".format(mode))
@@ -76,9 +76,11 @@ if __name__ == "__main__":
                         help="Listen to public requests (0.0.0.0).")
     parser.add_argument("-p", "--port",
                         help="The port to host the server on. 5000 by default")
-    parser.add_argument('--rewrite_templates', action='store_true',
-                        help="Rewrite old .txt template to the new .yml"
-                             "format")
+    parser.add_argument('--upgrade-templates', action='store_true',
+                        help="Rewrite old .txt template to the new .yml "
+                             "format and delete old .txt files from the "
+                             "template directory (consider backing up the"
+                             "directory first).")
     ns = parser.parse_args()
     port = ns.port
     if port is None:
@@ -89,5 +91,5 @@ if __name__ == "__main__":
     main(ns.mode, ns.path, recursive=ns.recursive, ext=ns.ext,
          template_dir=ns.templates, collection_dir=ns.collections,
          cache_dir=ns.cache, dev=ns.dev, port=port, public=ns.public,
-         rewrite_templates=ns.rewrite_templates,
+         upgrade_templates=ns.upgrade_templates,
          glob=ns.glob)

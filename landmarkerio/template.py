@@ -5,6 +5,7 @@ from pathlib import Path
 from flask import safe_join
 import abc
 import yaml
+import os
 
 from landmarkerio import TEMPLATE_DINAME, FileExt
 
@@ -126,16 +127,22 @@ def group_to_dict(g):
 def convert_legacy_template(path):
     with open(path) as f:
         ta = f.read().strip().split('\n\n')
+
     groups = [parse_group(g) for g in ta]
     data = {'groups': [group_to_dict(g) for g in groups]}
 
     new_path = path[:-3] + 'yml'
+    warning = ''
     if p.isfile(new_path):
         new_path = path[:-4] + '-converted.yml'
+        warning = '(appended -converted to avoid collision)'
+
     with open(new_path, 'w') as nf:
         yaml.dump(data, nf, indent=4,  default_flow_style=False)
 
-    print "- {} > {}".format(path, new_path)
+    os.remove(path)
+
+    print " - {} > {} {}".format(path, new_path, warning)
 
 
 def load_template(path, n_dims):
@@ -174,10 +181,10 @@ class FileTemplateAdapter(TemplateAdapter):
         self.template_dir = Path(p.abspath(p.expanduser(template_dir)))
         print ('templates: {}'.format(self.template_dir))
 
-    def handle_old_templates(self, rewrite_templates=False):
+    def handle_old_templates(self, upgrade_templates=False):
         old_ids = [t.stem for t
                    in self.template_dir.glob('*' + FileExt.old_template)]
-        if len(old_ids) > 0 and rewrite_templates:
+        if len(old_ids) > 0 and upgrade_templates:
             print "Converting {} old style templates".format(len(old_ids))
             for lm_id in old_ids:
                 fp = safe_join(str(self.template_dir),
@@ -211,16 +218,16 @@ class FileTemplateAdapter(TemplateAdapter):
 
 class CachedFileTemplateAdapter(FileTemplateAdapter):
 
-    def __init__(self, n_dims, template_dir=None, rewrite_templates=False):
+    def __init__(self, n_dims, template_dir=None, upgrade_templates=False):
         super(CachedFileTemplateAdapter, self).__init__(
             n_dims,
             template_dir=template_dir
         )
 
         # Handle those before generating cache as we want to load them if
-        # rewrite_templates is True
+        # upgrade_templates is True
         FileTemplateAdapter.handle_old_templates(
-            self, rewrite_templates=rewrite_templates)
+            self, upgrade_templates=upgrade_templates)
 
         self._cache = {lm_id: FileTemplateAdapter.load_template(self, lm_id)
                        for lm_id in FileTemplateAdapter.template_ids(self)}
