@@ -3,8 +3,9 @@ from os.path import join
 import sys
 import versioneer
 
-install_requires = ['menpo>=0.4.0,<0.5',
-                    'menpo3d>=0.1.0,<0.2',
+install_requires = ['menpo>=0.5.0,<0.6',
+                    'menpo3d>=0.2.0,<0.3',
+                    'menpofit>=0.2.0,<0.3',
                     'Flask>=0.10.1',
                     'Flask-RESTful>=0.2.12',
                     'CherryPy>=3.6.0',
