@@ -1,10 +1,11 @@
 from landmarkerio.server import (lmio_api, add_mode_endpoint, add_lm_endpoints,
                                  add_image_endpoints, add_mesh_endpoints,
-                                 add_template_endpoints,
+                                 add_template_endpoints, add_fit_endpoints,
                                  add_collection_endpoints)
 from landmarkerio.template import CachedFileTemplateAdapter
 from landmarkerio.collection import (AllCacheCollectionAdapter,
                                      FileCollectionAdapter)
+from landmarkerio.fit import FitAdapter
 from landmarkerio.asset import ImageCacheAdapter, MeshCacheAdapter
 
 from landmarkerio import Server
@@ -29,6 +30,7 @@ def serve_with_cherrypy(app, port=5000, public=False):
 
 def serve_from_cache(mode, cache_dir, lm_adapter, template_dir=None,
                      upgrade_templates=False, collection_dir=None, dev=False,
+                     model_dir=None,
                      username=None, password=None):
     r"""
 
@@ -57,4 +59,10 @@ def serve_from_cache(mode, cache_dir, lm_adapter, template_dir=None,
         collection_adapter = AllCacheCollectionAdapter(cache_dir)
     add_collection_endpoints(api, collection_adapter)
     print(collection_adapter)
+    if model_dir and mode == 'image':
+        print("Loading models")
+        fit_adapter = FitAdapter(model_dir)
+        add_fit_endpoints(api, fit_adapter)
+        print("Fitting available for {}.".format(fit_adapter.model_ids()))
+
     return app

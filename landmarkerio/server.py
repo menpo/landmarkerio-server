@@ -1,7 +1,7 @@
 from functools import partial, wraps
 from flask import Flask, request, send_file, make_response, Response
 from flask.ext.restful import abort, Api, Resource
-#from flask.ext.restful.utils import cors
+# from flask.ext.restful.utils import cors
 import cors  # until twilio/flask-restful/pull/276 is merged, see the package
 from landmarkerio import Server, Endpoints, Mimetype
 
@@ -95,7 +95,15 @@ def lmio_api(dev=False, username=None, password=None):
     cors_dict = {
         'allowed_origins': Server.allowed_origins,
         'headers': ['Origin', 'X-Requested-With', 'Content-Type', 'Accept'],
-        'methods': ['HEAD', 'GET', 'POST', 'PATCH', 'PUT', 'OPTIONS', 'DELETE'],
+        'methods': [
+            'HEAD',
+            'GET',
+            'POST',
+            'PATCH',
+            'PUT',
+            'OPTIONS',
+            'DELETE'
+        ],
         'credentials': True
     }
 
@@ -158,10 +166,10 @@ def add_lm_endpoints(api, lm_adapter, template_adapter):
             err = "{} does not have {} landmarks".format(asset_id, lm_id)
             try:
                 return lm_adapter.load_lm(asset_id, lm_id)
-            except Exception as e:
+            except Exception:
                 try:
                     return template_adapter.load_template(lm_id)
-                except Exception as e:
+                except Exception:
                     return abort(404, message=err)
 
         def put(self, asset_id, lm_id):
@@ -293,3 +301,57 @@ def add_mesh_endpoints(api, adapter):
 
     api.add_resource(MeshList, mesh_url())
     api.add_resource(Mesh, mesh_asset_url())
+
+
+def add_fit_endpoints(api, adapter):
+
+    class FitterList(Resource):
+
+        def get(self):
+            return adapter.model_ids()
+
+    class Initializer(Resource):
+        # Need this here to enable CORS put see http://mzl.la/1rCDkWX
+        def options(self, model_id):
+            pass
+
+        def post(self, model_id):
+            try:
+                img_data = request.form.get('img_data', None)
+                lms = request.form.get('landmarks', None)
+                if not img_data:
+                    return abort(400, message="Missing image data")
+                return adapter.receive(model_id, img_data, landmarks=lms)
+            except Exception as e:
+                print e
+                return abort(409, message="Failed to initialise")
+
+    class Fitter(Resource):
+
+        # Need this here to enable CORS put see http://mzl.la/1rCDkWX
+        def options(self, model_id, uid):
+            pass
+
+        def post(self, model_id, uid):
+            try:
+                lms = request.form.get('landmarks', None)
+                update = request.form.get('update', False)
+                if not update:
+                    return adapter.fit(model_id, uid, landmarks=lms)
+                else:
+                    if not lms:
+                        return abort(400, message="Missing landmarks")
+                    return adapter.update(model_id, uid, lms)
+            except Exception as e:
+                print e
+                return abort(409,
+                             message="Failed to process for "
+                             "{}:{}".format(model_id, uid))
+
+    fitter_url = partial(url, Endpoints.fit)
+
+    api.add_resource(FitterList, fitter_url())
+    api.add_resource(
+        Fitter,
+        fitter_url('<string:model_id>/<string:uid>'))
+    api.add_resource(Initializer, fitter_url('<string:model_id>/new'))

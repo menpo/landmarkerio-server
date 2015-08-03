@@ -36,6 +36,7 @@ class Endpoints(Enum):
     normals = 'normals'
     textures = 'textures'
     thumbnail = 'thumbnails'
+    fit = 'fit'
 
 
 class Mimetype(Enum):

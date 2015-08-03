@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+from landmarkerio.fit import build_model
+
+if __name__ == "__main__":
+    from argparse import ArgumentParser
+    parser = ArgumentParser(
+        description=r"""
+        Build an AAM model from a directory of training images and
+        saves it to disk for later reuse.
+        """)
+    parser.add_argument("name")
+    parser.add_argument("training_dir",
+                        help="Directory containing the training images and "
+                        "landmarks")
+    parser.add_argument("group",
+                        help="Landmark group label")
+    parser.add_argument("target_dir",
+                        help="Where to save the generated model")
+
+    parser.add_argument("--downscale", type=float, default=1.5)
+    parser.add_argument("--levels", type=int, default=3)
+    parser.add_argument("--max-images", type=int, default=None)
+    parser.add_argument("--crop-percentage", type=float, default=0.25)
+    parser.add_argument("--normalization", type=int, default=100)
+
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-f", "--force", action="store_true")
+
+    ns = parser.parse_args()
+
+    build_model(ns.name, ns.training_dir, ns.group, ns.target_dir,
+                downscale=ns.downscale, n_levels=ns.levels,
+                crop_percentage=ns.crop_percentage,
+                normalization_diagonal=ns.normalization,
+                max_images=ns.max_images, verbose=ns.verbose, force=ns.force)
