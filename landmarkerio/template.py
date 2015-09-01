@@ -53,7 +53,7 @@ def load_yaml_template(filepath, n_dims):
 
             if isinstance(connectivity, list):
                 index = parse_connectivity(connectivity, n)
-            elif connectivity is 'cycle':
+            elif connectivity == 'cycle':
                 index = parse_connectivity(
                     ['0:%d' % (n - 1), '%d 0' % (n - 1)], n)
             else:
