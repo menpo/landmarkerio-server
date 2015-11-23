@@ -47,7 +47,8 @@ if __name__ == "__main__":
                              "template directory (consider backing up the"
                              "directory first).")
     ns = parser.parse_args()
-    lm_adapter = SeparateDirFileLmAdapter(ns.landmarks)
+    lm_adapter = SeparateDirFileLmAdapter(ns.landmarks,
+                                          cache_dir=ns.cache, mode=ns.mode)
     if ns.basicauth is not None:
         username, password = parse_username_and_password_file(ns.basicauth)
     else:

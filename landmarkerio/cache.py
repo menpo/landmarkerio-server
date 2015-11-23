@@ -112,8 +112,11 @@ def _cache_image_for_id(cache_dir, asset_id, img):
     else:
         had_to_shrink = False
     # 1. Save out the image metadata json
-    image_info = {'width': img.width,
-                  'height': img.height}
+    image_info = {'width': img.width, 'height': img.height}
+
+    if had_to_shrink:
+        image_info.update({'scaling_ratio': ratio.min()})
+
     with open(image_info_path, 'wb') as f:
         json.dump(image_info, f)
 

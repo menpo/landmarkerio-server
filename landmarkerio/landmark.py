@@ -7,7 +7,8 @@ from collections import defaultdict
 from flask import safe_join
 import glob
 
-from landmarkerio import LM_DIRNAME, FileExt
+from landmarkerio import LM_DIRNAME, FileExt, CacheFile
+from landmarkerio.asset import ImageCacheAdapter, MeshCacheAdapter
 
 
 class LmAdapter(object):
@@ -37,12 +38,30 @@ class LmAdapter(object):
     def save_lm(self, asset_id, lm_id, lm_json):
         pass
 
+    @abc.abstractmethod
+    def scale_landmarks(self, asset_id, lm_id, lm_json):
+        r"""
+        Scale landmarks on save, usually up as caching will
+        scale down images bigger than 4096 pixels
+        Default implementation does nothing
+        """
+        return lm_json
+
 
 class FileLmAdapter(LmAdapter):
     r"""
     Concrete implementation of LmAdapater that serves landmarks from the
     local filesystem.
     """
+
+    def setup_cache_adapter(self, cache_dir, mode):
+        r"""
+        Setup an image cache to retrieve the data cached on startup
+        """
+        self.cache = {
+            'image': ImageCacheAdapter,
+            'mesh': MeshCacheAdapter
+        }.get(mode, lambda x: None)(cache_dir)
 
     def load_lm(self, asset_id, lm_id):
         fp = self.lm_fp(asset_id, lm_id)
@@ -57,8 +76,9 @@ class FileLmAdapter(LmAdapter):
         Persist a given landmark definition to disk.
         """
         fp = self.lm_fp(asset_id, lm_id)
+        scaled_lm_json = self.scale_landmarks(asset_id, lm_id, lm_json)
         with open(fp, 'wb') as f:
-            json.dump(lm_json, f, sort_keys=True, indent=4,
+            json.dump(scaled_lm_json, f, sort_keys=True, indent=4,
                       separators=(',', ': '))
 
     @abc.abstractmethod
@@ -66,14 +86,29 @@ class FileLmAdapter(LmAdapter):
         # where a landmark should exist
         pass
 
+    def scale_landmarks(self, asset_id, lm_id, lm_json):
+        print "Scaling: %s, %s" % (asset_id, lm_id)
+        if self.cache:
+            image_info_path = self.cache.image_info(asset_id)
+
+            with open(image_info_path, 'rb') as data:
+                image_info = json.load(data)
+        else:
+            pass
+
+        return lm_json
+
 
 class SeparateDirFileLmAdapter(FileLmAdapter):
 
-    def __init__(self, lm_dir):
+    def __init__(self, lm_dir, cache_dir=None, mode=None):
         if lm_dir is None:
             # By default place the landmarks in the cwd
             lm_dir = p.join(os.getcwd(), LM_DIRNAME)
         self.lm_dir = p.abspath(p.expanduser(lm_dir))
+
+        self.setup_cache_adapter(cache_dir, mode)
+
         if not p.isdir(self.lm_dir):
             print("Warning the landmark dir does not exist - creating...")
             os.mkdir(self.lm_dir)
@@ -124,8 +159,9 @@ class SeparateDirFileLmAdapter(FileLmAdapter):
 
 class InplaceFileLmAdapter(FileLmAdapter):
 
-    def __init__(self, asset_ids_to_paths):
+    def __init__(self, asset_ids_to_paths, cache_dir=None, mode=None):
         self.ids_to_paths = asset_ids_to_paths
+        self.setup_cache_adapter(cache_dir, mode)
         print('landmarks served inplace - found {} asset with '
               'landmarks'.format(len(self.asset_id_to_lm_id())))
 
