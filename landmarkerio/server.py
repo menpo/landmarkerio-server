@@ -266,6 +266,14 @@ def add_image_endpoints(api, adapter):
             err = "{} does not have a texture".format(asset_id)
             return image_file(adapter.texture_file(asset_id), err)
 
+        # Need this here to enable CORS put see http://mzl.la/1rCDkWX
+        def options(self, asset_id):
+            pass
+
+        def put(self, asset_id):
+            img_data = request.json.get('img_data', None)
+            return adapter.cache_image(asset_id, img_data)
+
     class Thumbnail(Resource):
 
         def get(self, asset_id):

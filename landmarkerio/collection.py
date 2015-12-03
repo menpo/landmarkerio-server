@@ -49,8 +49,8 @@ class FileCollectionAdapter(CollectionAdapter):
 class AllCacheCollectionAdapter(CollectionAdapter):
 
     def __init__(self, cache_dir):
-        cache_dir = Path(abspath(expanduser(cache_dir)))
-        self._collection = [p.name for p in dirs_in_dir(cache_dir)]
+        print('using AllCacheCollectionAdapter')
+        self.cache_dir = Path(abspath(expanduser(cache_dir)))
         self._collection_ids = [ALL_COLLECTION_ID]
 
     def collection_ids(self):
@@ -58,7 +58,8 @@ class AllCacheCollectionAdapter(CollectionAdapter):
 
     def collection(self, collection_id):
         if collection_id == ALL_COLLECTION_ID:
-            return self._collection
+            return [p.name for p in dirs_in_dir(self.cache_dir)]
+
         else:
             raise ValueError("Only valid collection_id "
                              "is '{}'".format(ALL_COLLECTION_ID))

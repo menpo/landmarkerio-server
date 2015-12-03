@@ -96,31 +96,15 @@ def cache_image(cache_dir, path, asset_id):
     _cache_image_for_id(cache_dir, asset_id, img)
 
 
-def _cache_image_for_id(cache_dir, asset_id, img):
+def _cache_image_for_id(cache_dir, asset_id, img, avoid_copy=True):
     asset_cache_dir = p.join(cache_dir, asset_id)
-    image_info_path = p.join(asset_cache_dir, CacheFile.image)
     texture_path = p.join(asset_cache_dir, CacheFile.texture)
     thumbnail_path = p.join(asset_cache_dir, CacheFile.thumbnail)
-    img_path = img.path
-
-    # WebGL only allows textures of maximum dimension 4096
-    ratio = 4096.0 / np.array(img.shape)
-    if np.any(ratio < 1):
-        # the largest axis of img will now be 4096
-        img = img.rescale(ratio.min(), round='round')
-        had_to_shrink = True
-    else:
-        had_to_shrink = False
-    # 1. Save out the image metadata json
-    image_info = {'width': img.width,
-                  'height': img.height}
-    with open(image_info_path, 'wb') as f:
-        json.dump(image_info, f)
 
     # 2. Save out the image
-    if img_path.suffix == '.jpg' and not had_to_shrink:
-        # Original was a jpg that was suitable, save it
-        shutil.copyfile(str(img_path), texture_path)
+    if avoid_copy and img.path.suffix == '.jpg':
+            # Original was a jpg that was suitable, save it
+            shutil.copyfile(str(img.path), texture_path)
     else:
         # Original wasn't a jpg or was too big - make it so
         img.as_PILImage().save(texture_path, format='jpeg')

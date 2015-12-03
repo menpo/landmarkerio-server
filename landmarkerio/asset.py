@@ -4,6 +4,8 @@ from pathlib import Path
 
 from flask import safe_join
 from landmarkerio import CacheFile
+from landmarkerio.cache import _cache_image_for_id
+from landmarkerio.fit import base64_to_image
 
 
 class ImageAdapter(object):
@@ -50,6 +52,9 @@ class ImageCacheAdapter(CacheAdapter, ImageAdapter):
 
     def __init__(self, cache_dir):
         CacheAdapter.__init__(self, cache_dir)
+        self.regenerate_asset_ids()
+
+    def regenerate_asset_ids(self):
         self._image_asset_ids = [a.parent.name
                                  for a in self.cache_dir.glob(os.path.join('*',
                                                               CacheFile.image))
@@ -62,6 +67,23 @@ class ImageCacheAdapter(CacheAdapter, ImageAdapter):
     def texture_file(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir),
                                   asset_id, CacheFile.texture))
+
+    def cache_image(self, asset_id, encoded_img):
+        img = base64_to_image(encoded_img)
+        i = 0
+        dir_ready = False
+        orig_asset_id = asset_id
+        while not dir_ready:
+            image_dir = self.cache_dir / asset_id
+            if not image_dir.is_dir():
+                image_dir.mkdir()
+                dir_ready = True
+            else:
+                asset_id = orig_asset_id + '_{}'.format(i)
+                i += 1
+        _cache_image_for_id(str(self.cache_dir), asset_id, img,
+                            avoid_copy=False)
+        self.regenerate_asset_ids()
 
     def thumbnail_file(self, asset_id):
         return reduce(safe_join,

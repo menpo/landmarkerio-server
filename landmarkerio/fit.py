@@ -111,7 +111,7 @@ def base64_to_image(encoded):
     if mode == 'RGBA':
         alpha = np.array(pil_img)[..., 3].astype(np.bool)
         image_pixels = _pil_to_numpy(pil_img, True, convert='RGB')
-        image = Image(image_pixels).as_greyscale(mode='luminosity')
+        image = Image(image_pixels)
     else:
         raise ValueError('Unexpected mode for PIL: {}'.format(mode))
 
@@ -138,7 +138,7 @@ class Fitter(object):
 
     def fit(self, encoded_img, landmarks=None):
         # Load image
-        img = base64_to_image(encoded_img)
+        img = base64_to_image(encoded_img).as_greyscale(mode='luminosity')
 
         if landmarks is not None:
             init_shape = _parse_ljson(landmarks).lms
