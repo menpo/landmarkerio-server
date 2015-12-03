@@ -78,8 +78,7 @@ def build_model(name, training_dir, group, target_dir,
     ).build(images, group=group, verbose=verbose)
 
     # Store pickled versions on disk
-    with open(p.join(model_dir, 'aam.pickled'), 'w') as aam_f:
-        cPickle.dump(aam, aam_f)
+    mio.export_pickle(aam, p.join(model_dir, 'aam.pkl'))
 
     with open(p.join(model_dir, 'info.json'), 'w') as info_f:
         json.dump({
@@ -87,17 +86,14 @@ def build_model(name, training_dir, group, target_dir,
         }, info_f)
 
     if verbose:
-        print("Created 'aam.pickled', 'info.json' in {}".format(model_dir))
+        print("Created 'aam.pkl', 'info.json' in {}".format(model_dir))
 
     return aam
 
 
 def load_model(name, source_dir):
     model_dir = _model_directory(source_dir, name)
-
-    with open(p.join(model_dir, 'aam.pickled'), 'r') as aam_f:
-        model = cPickle.load(aam_f)
-
+    model = mio.import_pickle(p.join(model_dir, 'aam.pkl'))
     with open(p.join(model_dir, 'info.json'), 'r') as info_f:
         info = json.load(info_f)
 

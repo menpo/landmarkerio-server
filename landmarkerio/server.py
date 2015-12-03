@@ -315,16 +315,12 @@ def add_fit_endpoints(api, adapter):
         def options(self, model_id):
             pass
 
-        def post(self, model_id):
-            try:
-                img_data = request.form.get('img_data', None)
-                lms = request.form.get('landmarks', None)
-                if not img_data:
-                    return abort(400, message="Missing image data")
-                return adapter.receive(model_id, img_data, landmarks=lms)
-            except Exception as e:
-                print e
-                return abort(409, message="Failed to initialise")
+        def put(self, model_id):
+            img_data = request.json.get('img_data', None)
+            lms = request.json.get('landmarks', None)
+            if not img_data:
+                return abort(400, message="Missing image data")
+            return adapter.receive(model_id, img_data, landmarks=lms)
 
     class Fitter(Resource):
 
@@ -332,21 +328,15 @@ def add_fit_endpoints(api, adapter):
         def options(self, model_id, uid):
             pass
 
-        def post(self, model_id, uid):
-            try:
-                lms = request.form.get('landmarks', None)
-                update = request.form.get('update', False)
-                if not update:
-                    return adapter.fit(model_id, uid, landmarks=lms)
-                else:
-                    if not lms:
-                        return abort(400, message="Missing landmarks")
-                    return adapter.update(model_id, uid, lms)
-            except Exception as e:
-                print e
-                return abort(409,
-                             message="Failed to process for "
-                             "{}:{}".format(model_id, uid))
+        def put(self, model_id, uid):
+            lms = request.json.get('landmarks', None)
+            update = request.json.get('update', False)
+            if not update:
+                return adapter.fit(model_id, uid, landmarks=lms)
+            else:
+                if not lms:
+                    return abort(400, message="Missing landmarks")
+                return adapter.update(model_id, uid, lms)
 
     fitter_url = partial(url, Endpoints.fit)
 
