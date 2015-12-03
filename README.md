@@ -2,6 +2,26 @@
 
 ###The [Menpo](https://github.com/menpo/menpo)-powered [landmarker.io](https://github.com/menpo/landmarker.io) server
 
+
+###ICCV Instructions
+
+This is a special branch of landmarkerio-server for use in the ICCV demo. To get setup,
+make sure you have a clean directory and no env called iccv. Then run:
+```
+> mkdir iccv && cd iccv
+> git clone git@github.com:menpo/landmarkerio-server && cd ./landmarkerio-server
+> git checkout iccv
+> conda create -n iccv python=2.7 -y  && source activate iccv
+> conda install -c menpo landmarkerio -y
+> conda remove landmarkerio -y
+> conda install menpo=0.5.3 menpodetect menpofit -y
+> pip install --no-deps -e ./
+> cd ..
+```
+Once installed, we need to build a model to serve.
+```
+./landmarkerio-server/landmarkerio/lmiomodel ibug68 --force /vol/atlas/databases/lfpw/trainset/ PTS ./models -v --max-images 100
+```
 ###About
 
 **landmarkerio server** is an implementation of the landmarker.io server API
