@@ -310,7 +310,8 @@ def add_fit_endpoints(api, adapter):
         def get(self):
             return adapter.model_ids()
 
-    class Initializer(Resource):
+    class Fitter(Resource):
+
         # Need this here to enable CORS put see http://mzl.la/1rCDkWX
         def options(self, model_id):
             pass
@@ -318,30 +319,12 @@ def add_fit_endpoints(api, adapter):
         def put(self, model_id):
             img_data = request.json.get('img_data', None)
             lms = request.json.get('landmarks', None)
-            if not img_data:
-                return abort(400, message="Missing image data")
-            return adapter.receive(model_id, img_data, landmarks=lms)
-
-    class Fitter(Resource):
-
-        # Need this here to enable CORS put see http://mzl.la/1rCDkWX
-        def options(self, model_id, uid):
-            pass
-
-        def put(self, model_id, uid):
-            lms = request.json.get('landmarks', None)
-            update = request.json.get('update', False)
-            if not update:
-                return adapter.fit(model_id, uid, landmarks=lms)
-            else:
-                if not lms:
-                    return abort(400, message="Missing landmarks")
-                return adapter.update(model_id, uid, lms)
+            print(lms)
+            return adapter.fit(model_id, img_data, landmarks=lms)
 
     fitter_url = partial(url, Endpoints.fit)
 
     api.add_resource(FitterList, fitter_url())
     api.add_resource(
         Fitter,
-        fitter_url('<string:model_id>/<string:uid>'))
-    api.add_resource(Initializer, fitter_url('<string:model_id>/new'))
+        fitter_url('<string:model_id>'))
