@@ -1,4 +1,3 @@
-import json
 import os
 import os.path as p
 from os.path import expanduser, abspath
@@ -16,6 +15,8 @@ import numpy as np
 
 from landmarkerio import CacheFile
 
+
+# identifier functions
 
 def filename_as_asset_id(fp):
     # simply return the filename as the asset_id
@@ -106,19 +107,14 @@ def _cache_image_for_id(cache_dir, asset_id, img):
     # WebGL only allows textures of maximum dimension 4096
     ratio = 4096.0 / np.array(img.shape)
     if np.any(ratio < 1):
-        # the largest axis of img will now be 4096
-        img = img.rescale(ratio.min(), round='round')
-        had_to_shrink = True
-    else:
-        had_to_shrink = False
-    # 1. Save out the image metadata json
-    image_info = {'width': img.width,
-                  'height': img.height}
-    with open(image_info_path, 'wb') as f:
-        json.dump(image_info, f)
+        # the largest axis of the img could be too big for older browsers.
+        # Give a warning.
+        print('Warning: {} has shape {}. Dims larger than 4096 may have '
+              'issues rendering in older browsers.'.format(asset_id,
+                                                           img.shape))
 
     # 2. Save out the image
-    if img_path.suffix == '.jpg' and not had_to_shrink:
+    if img_path.suffix == '.jpg':
         # Original was a jpg that was suitable, save it
         shutil.copyfile(str(img_path), texture_path)
     else:
