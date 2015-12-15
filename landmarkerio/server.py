@@ -249,11 +249,6 @@ def add_image_endpoints(api, adapter):
         all data to pass to landmarker.io.
 
     """
-    class Image(Resource):
-
-        def get(self, asset_id):
-            err = "{} does not have an image".format(asset_id)
-            return json_file(adapter.image_info(asset_id), err)
 
     class ImageList(Resource):
 
@@ -285,7 +280,6 @@ def add_image_endpoints(api, adapter):
     thumbnail_url = partial(url, Endpoints.thumbnail)
 
     api.add_resource(ImageList, image_url())
-    api.add_resource(Image, asset(image_url)())
 
     api.add_resource(Texture, asset(texture_url)())
     api.add_resource(Thumbnail, asset(thumbnail_url)())

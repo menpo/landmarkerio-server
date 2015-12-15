@@ -3,13 +3,13 @@ from os.path import join
 import sys
 import versioneer
 
-install_requires = ['menpo>=0.5.0,<0.6',
-                    'menpo3d>=0.2.0,<0.3',
-                    'menpofit>=0.2.0,<0.3',
-                    'menpodetect>=0.2.0,<0.3',
+install_requires = ['menpo>=0.6,<0.7',
+                    'menpo3d>=0.3,<0.4',
+                    'menpofit>=0.3,<0.4',
+                    'menpodetect>=0.3,<0.4',
                     'Flask>=0.10.1',
                     'Flask-RESTful>=0.2.12',
-                    'CherryPy>=3.6.0',
+                    'CherryPy>=3.8.0',
                     'joblib>=0.8.4',
                     'PyYaml>=3.11']
 

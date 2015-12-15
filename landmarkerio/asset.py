@@ -15,10 +15,6 @@ class ImageAdapter(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def image_info(self, asset_id):
-        pass
-
-    @abc.abstractmethod
     def texture_file(self, asset_id):
         pass
 
@@ -59,10 +55,6 @@ class ImageCacheAdapter(CacheAdapter, ImageAdapter):
                                  for a in self.cache_dir.glob(os.path.join('*',
                                                               CacheFile.image))
                                  if a.parent.parent == self.cache_dir]
-
-    def image_info(self, asset_id):
-        return reduce(safe_join,
-                      (str(self.cache_dir), asset_id, CacheFile.image))
 
     def texture_file(self, asset_id):
         return reduce(safe_join, (str(self.cache_dir),

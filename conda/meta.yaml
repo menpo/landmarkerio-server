@@ -10,14 +10,14 @@ requirements:
   run:
     - python
     - pathlib 1.0  # [py2k]
-    - enum 0.4.4 # [py2k]
-    - menpo 0.5.0|>=0.5.1,<0.6.0  # Make sure we ignore the alpha
-    - menpo3d 0.1.0|>=0.1.1,<0.2.0  # Make sure we ignore the alpha
-    - menpofit 0.2.0|>=0.2.1,<0.3.0  # Make sure we ignore the alpha
-    - menpodetect 0.2.0,<0.3.0
+    - enum 0.4.4   # [py2k]
+    - menpo 0.6.*
+    - menpo3d 0.3.*
+    - menpofit 0.3.*
+    - menpodetect 0.3.*
     - flask 0.10.1
     - flask-restful 0.2.12
-    - cherrypy 3.6.0
+    - cherrypy 3.8.0
     - joblib 0.8.4
     - pyyaml 3.11
 
