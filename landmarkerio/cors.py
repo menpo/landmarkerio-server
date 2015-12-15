@@ -50,12 +50,7 @@ def crossdomain(allowed_origins=None, methods=None, headers=None,
 
             h = resp.headers
 
-            # if the origin matches any of our allowed origins set the
-            # access control header appropriately
-            allow_origin = (origin if origin is not None and
-                                      allowed_origins is not None and
-                                      origin in allowed_origins else None)
-            h['Access-Control-Allow-Origin'] = allow_origin
+            h['Access-Control-Allow-Origin'] = origin
             h['Access-Control-Allow-Methods'] = get_methods()
             h['Access-Control-Max-Age'] = str(max_age)
             if credentials:

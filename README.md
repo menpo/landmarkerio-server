@@ -20,11 +20,11 @@ Once installed, we need to build a model to serve, then we can run the server.
 ```
 mkdir images landmarks templates
 wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 -O predictor.dat.bz2
-bzip2 -d predictor.bz2
+bzip2 -d predictor.dat.bz2
 wget https://gist.githubusercontent.com/jabooth/7c7a8d939d16bbcebfb4/raw/a004e0cc6c0bb7b2928d22e27d8e66d06c4b067f/ibug68.yml -O ./templates/ibug68.yml
 wget https://lh5.googleusercontent.com/-QwLSi4cZPFw/AAAAAAAAAAI/AAAAAAAAvQs/C8wuv59OttI/s0-c-k-no-ns/photo.jpg -O ./images/beckham.jpg
 ./landmarkerio-server/landmarkerio/lmiocache image ./images ./cache
-./landmarkerio-server/landmarkerio/lmioserve image ./cache ./landmarks -t ./templates --dlib ./predictor.dat
+./landmarkerio-server/landmarkerio/lmioserve image ./cache ./landmarks -t ./templates --dlib ./predictor.dat --public
 ```
 Now visit the following special link to access the iccv demo:
 ```
