@@ -5,12 +5,12 @@
 
 ###ICCV Instructions
 
-This is a special branch of landmarkerio-server for use in the ICCV demo. To get setup,
-make sure you have a clean directory and an env called iccv. Then run:
+This is a special branch of landmarkerio-server for use in the ICCV demo. To get setup
+locally make sure you have a clean directory and an env called iccv. Then run:
 ```
 mkdir iccv && cd iccv
 git clone git@github.com:menpo/landmarkerio-server && cd ./landmarkerio-server
-git checkout iccv
+git checkout iccvlocal
 conda install -c menpo landmarkerio menpofit menpodetect -y
 conda remove landmarkerio -y
 pip install --no-deps -e ./
@@ -26,9 +26,12 @@ wget https://lh5.googleusercontent.com/-QwLSi4cZPFw/AAAAAAAAAAI/AAAAAAAAvQs/C8wu
 ./landmarkerio-server/landmarkerio/lmiocache image ./images ./cache
 ./landmarkerio-server/landmarkerio/lmioserve image ./cache ./landmarks -t ./templates --dlib ./predictor.dat --public
 ```
-Now visit the following special link to access the iccv demo:
+Take the local build of the landmarker.io JS code (from Dropbox) and serve it
 ```
-http://insecure.landmarker.io/staging/autofit/#server=localhost%3A5000&t=ibug68&c=all&i=1&fit=localhost%3A5000%2Fapi%2Fv2%2Ffit
+> brew install npm
+> npm install -g http-server
+> cd ./build
+> http-server
 ```
 ###About
 
