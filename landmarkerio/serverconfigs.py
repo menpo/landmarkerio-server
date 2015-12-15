@@ -16,8 +16,15 @@ def serve_with_cherrypy(app, port=5000, public=False):
     # Mount the WSGI callable object (app) on the desired endpoint (e.g.
     # /api/v1)
     cherrypy.tree.graft(app, Server.endpoint)
+    cherrypy.tree.mount(None, '/', {'/' : {
+    'tools.staticdir.dir': '/root/build/',
+    'tools.staticdir.on': True,
+    'tools.staticdir.index': "index.html"
+    }})
     update_dict = {
         'server.socket_port': port,
+        'server.ssl_certificate': "cert.pem",
+        'server.ssl_private_key': "privkey.pem",
     }
     if public:
         update_dict['server.socket_host'] = '0.0.0.0'
