@@ -101,7 +101,6 @@ def _cache_image_for_id(cache_dir, asset_id, img, avoid_copy=True):
     asset_cache_dir = p.join(cache_dir, asset_id)
     texture_path = p.join(asset_cache_dir, CacheFile.texture)
     thumbnail_path = p.join(asset_cache_dir, CacheFile.thumbnail)
-    img_path = img.path
 
     # WebGL only allows textures of maximum dimension 4096
     ratio = 4096.0 / np.array(img.shape)
@@ -112,13 +111,8 @@ def _cache_image_for_id(cache_dir, asset_id, img, avoid_copy=True):
               'issues rendering in older browsers.'.format(asset_id,
                                                            img.shape))
 
-    # 2. Save out the image
-    if img_path.suffix == '.jpg':
-        # Original was a jpg that was suitable, save it
-        shutil.copyfile(str(img_path), texture_path)
-    else:
-        # Original wasn't a jpg or was too big - make it so
-        img.as_PILImage().save(texture_path, format='jpeg')
+    # Original wasn't a jpg or was too big - make it so
+    img.as_PILImage().save(texture_path, format='jpeg')
     # 3. Save out the thumbnail
     save_jpg_thumbnail_file(img, thumbnail_path)
 

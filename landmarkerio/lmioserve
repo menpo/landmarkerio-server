@@ -46,11 +46,9 @@ if __name__ == "__main__":
                              "format and delete old .txt files from the "
                              "template directory (consider backing up the"
                              "directory first).")
-    parser.add_argument('--fit', action='store_true',
-                        help="Expose the fitter in the directory provided "
-                        "under --models")
-    parser.add_argument('--models',
-                        help="Directory from which to load pickled models")
+    parser.add_argument('--dlib',
+                        help="Path to dlib predictor. If provided, fitting "
+                             "is enabled")
     ns = parser.parse_args()
     lm_adapter = SeparateDirFileLmAdapter(ns.landmarks)
 
@@ -59,13 +57,11 @@ if __name__ == "__main__":
     else:
         username, password = None, None
 
-    model_dir = ns.models if ns.fit else None
-
     app = serve_from_cache(ns.mode, ns.cache, lm_adapter,
                            template_dir=ns.templates,
                            upgrade_templates=ns.upgrade_templates,
                            collection_dir=ns.collections, dev=ns.dev,
-                           model_dir=model_dir,
+                           dlib_predictor=ns.dlib,
                            username=username, password=password)
     if ns.port is None:
         port = 5000

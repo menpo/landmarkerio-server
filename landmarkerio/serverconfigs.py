@@ -30,7 +30,7 @@ def serve_with_cherrypy(app, port=5000, public=False):
 
 def serve_from_cache(mode, cache_dir, lm_adapter, template_dir=None,
                      upgrade_templates=False, collection_dir=None, dev=False,
-                     model_dir=None,
+                     dlib_predictor=None,
                      username=None, password=None):
     r"""
 
@@ -59,9 +59,9 @@ def serve_from_cache(mode, cache_dir, lm_adapter, template_dir=None,
         collection_adapter = AllCacheCollectionAdapter(cache_dir)
     add_collection_endpoints(api, collection_adapter)
     print(collection_adapter)
-    if model_dir and mode == 'image':
-        print("Loading models")
-        fit_adapter = FitAdapter(model_dir)
+    if dlib_predictor and mode == 'image':
+        print("Loading dlib fitter")
+        fit_adapter = FitAdapter(dlib_predictor)
         add_fit_endpoints(api, fit_adapter)
         print("Fitting available for {}.".format(fit_adapter.model_ids()))
 

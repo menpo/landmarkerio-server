@@ -6,26 +6,25 @@
 ###ICCV Instructions
 
 This is a special branch of landmarkerio-server for use in the ICCV demo. To get setup,
-make sure you have a clean directory and no env called iccv. Then run:
+make sure you have a clean directory and an env called iccv. Then run:
 ```
 mkdir iccv && cd iccv
 git clone git@github.com:menpo/landmarkerio-server && cd ./landmarkerio-server
 git checkout iccv
-conda create -n iccv python=2.7 -y  && source activate iccv
-conda install -c menpo landmarkerio -y
+conda install -c menpo landmarkerio menpofit menpodetect -y
 conda remove landmarkerio -y
-conda install menpo=0.5.3 menpodetect menpofit -y
 pip install --no-deps -e ./
 cd ..
 ```
 Once installed, we need to build a model to serve, then we can run the server.
 ```
-./landmarkerio-server/landmarkerio/lmiomodel ibug68 --force /vol/atlas/databases/lfpw/trainset/ PTS ./models -v --max-images 100
 mkdir images landmarks templates
+wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 -O predictor.dat.bz2
+bzip2 -d predictor.bz2
 wget https://gist.githubusercontent.com/jabooth/7c7a8d939d16bbcebfb4/raw/a004e0cc6c0bb7b2928d22e27d8e66d06c4b067f/ibug68.yml -O ./templates/ibug68.yml
 wget https://lh5.googleusercontent.com/-QwLSi4cZPFw/AAAAAAAAAAI/AAAAAAAAvQs/C8wuv59OttI/s0-c-k-no-ns/photo.jpg -O ./images/beckham.jpg
-./landmarkerio-server/landmarkerio/lmiocache image ./images/ ./cache
-./landmarkerio-server/landmarkerio/lmioserve image ./cache ./landmarks --fit --models ./models/ -t ./templates
+./landmarkerio-server/landmarkerio/lmiocache image ./images ./cache
+./landmarkerio-server/landmarkerio/lmioserve image ./cache ./landmarks -t ./templates --dlib ./predictor.dat
 ```
 Now visit the following special link to access the iccv demo:
 ```
