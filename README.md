@@ -16,7 +16,7 @@ conda remove landmarkerio -y
 pip install --no-deps -e ./
 cd ..
 ```
-Once installed, we need to build a model to serve, then we can run the server.
+Once installed, we need to download the DLIB shape predictor that we will use for the autofitting. In the future, this will be replaced or supplimented with menpofit models.
 ```
 mkdir images landmarks templates
 wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 -O predictor.dat.bz2
@@ -26,13 +26,15 @@ wget https://lh5.googleusercontent.com/-QwLSi4cZPFw/AAAAAAAAAAI/AAAAAAAAvQs/C8wu
 ./landmarkerio-server/landmarkerio/lmiocache image ./images ./cache
 ./landmarkerio-server/landmarkerio/lmioserve image ./cache ./landmarks -t ./templates --dlib ./predictor.dat --public
 ```
-Take the local build of the landmarker.io JS code (from Dropbox) and serve it
+Now take the iccv branch from landmarker.io and build and serve it locally. One way of doing that:
 ```
 > brew install npm
 > npm install -g http-server
 > cd ./build
 > http-server
 ```
+You should be good to go!
+
 ###About
 
 **landmarkerio server** is an implementation of the landmarker.io server API
