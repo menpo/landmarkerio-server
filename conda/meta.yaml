@@ -10,7 +10,6 @@ requirements:
   run:
     - python
     - pathlib 1.0  # [py2k]
-    - enum 0.4.4   # [py2k]
     - menpo 0.6.*
     - menpo3d 0.3.*
     - flask 0.10.1
