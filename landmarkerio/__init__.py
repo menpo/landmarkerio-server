@@ -1,14 +1,11 @@
-from enum import Enum
-
-
-class FileExt(Enum):
+class FileExt(object):
     lm = '.ljson'
     template = '.yml'
     old_template = '.txt'
     collection = '.txt'
 
 
-class CacheFile(Enum):
+class CacheFile(object):
     texture = 'texture.jpg'
     image = 'image.json'
     thumbnail = 'thumbnail.jpg'
@@ -16,14 +13,14 @@ class CacheFile(Enum):
     mesh = 'mesh.raw.gz'
 
 
-class Server(Enum):
+class Server(object):
     allowed_origins = ['https://www.landmarker.io',      # secure client
                        'http://localhost:4000',          # client development
                        'http://insecure.landmarker.io']  # legacy client
     endpoint = '/api/v2/'
 
 
-class Endpoints(Enum):
+class Endpoints(object):
     mode = 'mode'
     images = 'images'
     collections = 'collections'
@@ -38,11 +35,10 @@ class Endpoints(Enum):
     thumbnail = 'thumbnails'
 
 
-class Mimetype(Enum):
+class Mimetype(object):
     json = 'application/json'
     jpeg = 'image/jpeg'
     binary = 'application/octet-stream'
-
 
 LM_DIRNAME = 'lmiolandmarks'
 TEMPLATE_DINAME = '.lmiotemplates'

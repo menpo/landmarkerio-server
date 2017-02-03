@@ -12,7 +12,7 @@ install_requires = ['menpo>=0.6,<0.7',
                     'PyYaml>=3.11']
 
 if sys.version_info.major == 2:
-    install_requires.extend(['enum>=0.4.4', 'pathlib>=1.0'])
+    install_requires.extend(['pathlib>=1.0'])
 
 setup(name='landmarkerio',
       version=versioneer.get_version(),
