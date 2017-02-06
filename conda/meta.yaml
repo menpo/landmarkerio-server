@@ -10,8 +10,8 @@ requirements:
   run:
     - python
     - pathlib 1.0  # [py2k]
-    - menpo 0.6.*
-    - menpo3d 0.3.*
+    - menpo 0.7.*
+    - menpo3d 0.4.*
     - flask 0.10.1
     - flask-restful 0.2.12
     - cherrypy 3.8.0
