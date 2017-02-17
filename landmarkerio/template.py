@@ -31,37 +31,41 @@ def parse_connectivity(index_lst, n):
     return index
 
 
-def load_yaml_template(filepath, n_dims):
-    with open(filepath) as f:
-        data = yaml.load(f.read())
+def load_yaml_templates(template_ids, filepaths, n_dims):
+    templates = {}
+    for template_id, fp in zip(template_ids, filepaths):
+        with open(fp) as f:
+            data = yaml.load(f.read())
 
-        if 'groups' in data:
-            raw_groups = data['groups']
-        else:
-            raise KeyError(
-                "Missing 'groups' or 'template' key in yaml file %s"
-                % filepath)
-
-        groups = []
-
-        for index, group in enumerate(raw_groups):
-
-            label = group.get('label', index)  # Allow simple ordered groups
-
-            n = group['points']  # Should raise KeyError by design if missing
-            connectivity = group.get('connectivity', [])
-
-            if isinstance(connectivity, list):
-                index = parse_connectivity(connectivity, n)
-            elif connectivity == 'cycle':
-                index = parse_connectivity(
-                    ['0:%d' % (n - 1), '%d 0' % (n - 1)], n)
+            if 'groups' in data:
+                raw_groups = data['groups']
             else:
-                index = []  # Couldn't parse connectivity, safe default
+                raise KeyError(
+                    "Missing 'groups' or 'template' key in yaml file %s"
+                    % fp)
 
-            groups.append(Group(label, n, index))
+            groups = []
 
-    return build_json(groups, n_dims)
+            for index, group in enumerate(raw_groups):
+
+                label = group.get('label', index)  # Allow simple ordered groups
+
+                n = group['points']  # Should raise KeyError by design if missing
+                connectivity = group.get('connectivity', [])
+
+                if isinstance(connectivity, list):
+                    index = parse_connectivity(connectivity, n)
+                elif connectivity == 'cycle':
+                    index = parse_connectivity(
+                        ['0:%d' % (n - 1), '%d 0' % (n - 1)], n)
+                else:
+                    index = []  # Couldn't parse connectivity, safe default
+
+                groups.append(Group(label, n, index))
+
+            templates[template_id] = groups
+
+    return build_json(templates, n_dims)
 
 
 def parse_group(group):
@@ -85,36 +89,34 @@ def group_to_json(group, n_dims):
     return group_json
 
 
-def build_json(groups, n_dims):
-    n_points = sum(g.n for g in groups)
-    offset = 0
-    connectivity = []
-    labels = []
-    for g in groups:
-        connectivity += [[j + offset for j in i] for i in g.index]
-        labels.append({
-            'label': g.label,
-            'mask': list(range(offset, offset + g.n))
-        })
-        offset += g.n
-
+def build_json(per_template_groups, n_dims):
     lm_json = {
-        'labels': labels,
-        'landmarks': {
-            'connectivity': connectivity,
-            'points': [[None] * n_dims] * n_points
-        },
-        'version': 2,
+        'groups': {},
+        'version': 3
     }
 
+    for template_id, groups in per_template_groups.iteritems():
+        n_points = sum(g.n for g in groups)
+        offset = 0
+        connectivity = []
+        labels = []
+        for g in groups:
+            connectivity += [[j + offset for j in i] for i in g.index]
+            labels.append({
+                'label': g.label,
+                'mask': list(range(offset, offset + g.n))
+            })
+            offset += g.n
+
+        lm_json['groups'][template_id] = {
+            'labels': labels,
+            'landmarks': {
+                'connectivity': connectivity,
+                'points': [[None] * n_dims] * n_points
+            }
+        }
+
     return lm_json
-
-
-def load_legacy_template(path, n_dims):
-    with open(path) as f:
-        ta = f.read().strip().split('\n\n')
-    groups = [parse_group(g) for g in ta]
-    return build_json(groups, n_dims)
 
 
 def group_to_dict(g):
@@ -145,8 +147,8 @@ def convert_legacy_template(path):
     print " - {} > {} {}".format(path, new_path, warning)
 
 
-def load_template(path, n_dims):
-    return load_yaml_template(path, n_dims)
+def load_templates(lm_ids, filepaths, n_dims):
+    return load_yaml_templates(lm_ids, filepaths, n_dims)
 
 
 class TemplateAdapter(object):
@@ -162,7 +164,7 @@ class TemplateAdapter(object):
         pass
 
     @abc.abstractmethod
-    def load_template(self, lm_id):
+    def load_templates(self):
         pass
 
 
@@ -211,9 +213,10 @@ class FileTemplateAdapter(TemplateAdapter):
     def template_paths(self):
         return self.template_dir.glob('*' + FileExt.template)
 
-    def load_template(self, lm_id):
-        fp = safe_join(str(self.template_dir), lm_id + FileExt.template)
-        return load_template(fp, self.n_dims)
+    def load_templates(self):
+        template_ids = self.template_ids()
+        filepaths = [safe_join(str(self.template_dir), lm_id + FileExt.template) for lm_id in template_ids]
+        return load_templates(template_ids, filepaths, self.n_dims)
 
 
 class CachedFileTemplateAdapter(FileTemplateAdapter):
@@ -229,10 +232,9 @@ class CachedFileTemplateAdapter(FileTemplateAdapter):
         FileTemplateAdapter.handle_old_templates(
             self, upgrade_templates=upgrade_templates)
 
-        self._cache = {lm_id: FileTemplateAdapter.load_template(self, lm_id)
-                       for lm_id in FileTemplateAdapter.template_ids(self)}
+        self._cache = FileTemplateAdapter.load_templates(self)
         print('cached {} templates ({})'.format(
-            len(self._cache), ', '.join(self._cache.keys())))
+            len(FileTemplateAdapter.template_ids(self)), ', '.join(FileTemplateAdapter.template_ids(self))))
 
-    def load_template(self, lm_id):
-        return self._cache[lm_id]
+    def load_templates(self):
+        return self._cache
