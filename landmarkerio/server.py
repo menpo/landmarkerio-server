@@ -187,9 +187,10 @@ def add_lm_endpoints(api, lm_adapter, template_adapter):
             return lm_adapter.lm_ids(asset_id)
 
     lm_url = partial(url, Endpoints.landmarks)
+    lm_json_url = partial(url, Endpoints.landmarks_json)
     api.add_resource(LandmarkList, lm_url())
     api.add_resource(LandmarkListForId, asset(lm_url)())
-    api.add_resource(Landmark, asset(lm_url)())
+    api.add_resource(Landmark, asset(lm_json_url)())
 
 
 def add_template_endpoints(api, adapter):
