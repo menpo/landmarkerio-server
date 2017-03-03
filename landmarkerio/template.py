@@ -113,6 +113,9 @@ def build_json(per_template_groups, n_dims):
             'landmarks': {
                 'connectivity': connectivity,
                 'points': [[None] * n_dims] * n_points
+            },
+            'metadata': {
+                'visible': [1] * n_points
             }
         }
 
