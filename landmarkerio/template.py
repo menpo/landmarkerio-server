@@ -167,6 +167,12 @@ class TemplateAdapter(object):
     def load_templates(self):
         pass
 
+    def repair_lm(self, lm_json):
+        t_ids = self.template_ids
+        for t_id in t_ids:
+            if not hasattr(lm_json['groups'], t_id):
+                lm_json['groups'][t_id] = self.load_templates()['groups'][t_id]
+
 
 class FileTemplateAdapter(TemplateAdapter):
 

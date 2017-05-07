@@ -157,7 +157,9 @@ def add_lm_endpoints(api, lm_adapter, template_adapter):
         def get(self, asset_id):
             err = "{} does not have landmarks".format(asset_id)
             try:
-                return lm_adapter.load_lm(asset_id)
+                lm_json = lm_adapter.load_lm(asset_id)
+                template_adapter.repair_lm(lm_json)
+                return lm_json
             except Exception as e:
                 try:
                     return template_adapter.load_templates()
