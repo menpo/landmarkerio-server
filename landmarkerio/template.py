@@ -168,9 +168,9 @@ class TemplateAdapter(object):
         pass
 
     def repair_lm(self, lm_json):
-        t_ids = self.template_ids
+        t_ids = self.template_ids()
         for t_id in t_ids:
-            if not hasattr(lm_json['groups'], t_id):
+            if not t_id in lm_json['groups']:
                 lm_json['groups'][t_id] = self.load_templates()['groups'][t_id]
 
 
