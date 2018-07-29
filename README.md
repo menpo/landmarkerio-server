@@ -1,8 +1,8 @@
 [![PyPI Release](http://img.shields.io/pypi/v/landmarkerio-server.svg?style=flat)](https://pypi.python.org/pypi/landmarkerio-server)
 
-###The [Menpo](https://github.com/menpo/menpo)-powered [landmarker.io](https://github.com/menpo/landmarker.io) server
+### The [Menpo](https://github.com/menpo/menpo)-powered [landmarker.io](https://github.com/menpo/landmarker.io) server
 
-###About
+### About
 
 **landmarkerio server** is an implementation of the landmarker.io server API
 in Python. It uses Menpo to load images and meshes and serves them to
@@ -11,45 +11,18 @@ it is landmarkerio server that will actually persist the landmarks to disk.
 
 The Python package for landmarkerio server is unambigously `landmarkerio`.
 
-###Purpose
+### Purpose
 
-[landmarker.io](https://github.com/menpo/landmarker.io) is a web app 
-for annotating 2D and 3D assets. It has no dependencies beyond on a modern browser, 
-so it's trivial to use. 
-
-Landmarker.io can work in a standalone fashion, directly
-loading assets from Dropbox or, in the case of [Landmarker.app](https://github.com/menpo/landmarker-app/), loading
-assets directly from a users filesystem. However, sometimes it is
-desirable to run an annotation experiment in a centralised, ordered
-fashion. As an example, you may have thousands of 3D meshes that need
-annotating, and you want to use a service like 
-[Mechanical Turk](https://www.mturk.com/mturk/welcome) to recruit
-annotators to get the job done. Trying to run such an experiment in an
-uncentralised way would perhaps look something like this:
-
-1. Divide up all the assets into subsets.
-2. Provide each annotator with a folder full of assets and ask them to place the assets in Dropbox or in their local filesystem
-3. Ask them to visit landmarker.io and login with their Dropbox account, or download and install Landmarker.app
-4. Provide instructions on how to find the assets using landmarker.io
-5. Ask the annotator to send you back the annotation files once they are done.
-
-However, this is clearly problematic. The process to get an annotator to even start
-annotating is far too complex and error prone. Such a system is very inflexible - if you
-just want to ask an annotator to complete one more mesh, you have to send them the mesh
-somehow for annotation.
-
-landmarkerio server is designed for exactly these scenarios. landmarker.io knowns
-how to talk to landmarkerio server instances over a RESTful API. The server
-holds all assets and landmarks, and users can be constrained in what they can and can't
+landmarker.io knowns how to talk to landmarkerio server instances over a RESTful API. The server
+holds all assets and landmarks, and annotators can be constrained in what they can and can't
 do. For instance - you can limit the choice of templates that users are able to use,
 or the assets that they see. Upon saving, landmarks are saved back to the server instance,
 so at all times you remain in control of the annotation experiement.
 
-###Serving assets locally
+### Serving assets locally
 
 landmarkerio server can be used for annotation jobs on a local machine, **but
-it is not recommend**. Consider just using landmarker.io's Dropbox mode, or 
-Landmarker.app instead.
+it is not recommend**. Consider using Landmarker.app instead.
 
 If you do want to do local annoations with landmarkerio-server,
 just run the server (called `lmio`) from the command
@@ -60,7 +33,7 @@ for an indepth discussion on why this is on the 'insecure' subdomain.
 You can get as clever as you want to enable remote serving of landmarks -
 SSH port tunnelling is an easy secure solution.
 
-###Installation
+### Installation
 
 landmarkerio server requires [Menpo](https://github.com/menpo/menpo)
 [Menpo3d](https://github.com/menpo/menpo) to run. As these have somewhat
@@ -70,7 +43,7 @@ with conda. On OS X, Linux or Windows, just install conda and then
 >> conda install -c menpo landmarkerio
 ```
 
-###Important concepts
+### Important concepts
 
 landmarkerio server handles three different forms of data
 
@@ -79,7 +52,7 @@ landmarkerio server handles three different forms of data
 - templates - *specifications of landmarks*
 
 
-###Usage
+### Usage
 
 The landmarker.io server can be started in one of two modes: 'image' and 'mesh'. To begin annotating a folder of meshes, just run
 ```
