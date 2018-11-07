@@ -17,7 +17,7 @@ class Server(object):
     allowed_origins = ['https://www.landmarker.io',      # secure client
                        'http://localhost:4000',          # client development
                        'http://insecure.landmarker.io']  # legacy client
-    endpoint = '/api/v2/'
+    endpoint = '/api/v3/'
 
 
 class Endpoints(object):
@@ -25,6 +25,7 @@ class Endpoints(object):
     images = 'images'
     collections = 'collections'
     landmarks = 'landmarks'
+    landmarks_json = 'landmarks/json'
     meshes = 'meshes'
     templates = 'templates'
     points = 'points'

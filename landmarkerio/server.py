@@ -154,26 +154,26 @@ def add_lm_endpoints(api, lm_adapter, template_adapter):
 
     class Landmark(Resource):
 
-        def get(self, asset_id, lm_id):
-            err = "{} does not have {} landmarks".format(asset_id, lm_id)
+        def get(self, asset_id):
+            err = "{} does not have landmarks".format(asset_id)
             try:
-                return lm_adapter.load_lm(asset_id, lm_id)
+                return lm_adapter.load_lm(asset_id)
             except Exception as e:
                 try:
-                    return template_adapter.load_template(lm_id)
+                    return template_adapter.load_templates()
                 except Exception as e:
                     return abort(404, message=err)
 
-        def put(self, asset_id, lm_id):
+        def put(self, asset_id):
             try:
-                return lm_adapter.save_lm(asset_id, lm_id, request.json)
+                return lm_adapter.save_lm(asset_id, request.json)
             except Exception as e:
                 print(e)
-                return abort(409, message="{}:{} unable to "
-                                          "save".format(asset_id, lm_id))
+                return abort(409, message="{} unable to "
+                                          "save".format(asset_id))
 
         # Need this here to enable CORS put see http://mzl.la/1rCDkWX
-        def options(self, asset_id, lm_id):
+        def options(self, asset_id):
             pass
 
     class LandmarkList(Resource):
@@ -187,18 +187,13 @@ def add_lm_endpoints(api, lm_adapter, template_adapter):
             return lm_adapter.lm_ids(asset_id)
 
     lm_url = partial(url, Endpoints.landmarks)
+    lm_json_url = partial(url, Endpoints.landmarks_json)
     api.add_resource(LandmarkList, lm_url())
     api.add_resource(LandmarkListForId, asset(lm_url)())
-    api.add_resource(Landmark, asset(lm_url)('<string:lm_id>'))
+    api.add_resource(Landmark, asset(lm_json_url)())
 
 
 def add_template_endpoints(api, adapter):
-
-    class Template(Resource):
-
-        def get(self, lm_id):
-            err = "{} template does not exist".format(lm_id)
-            return safe_send(adapter.load_template(lm_id), err)
 
     class TemplateList(Resource):
 
@@ -207,7 +202,6 @@ def add_template_endpoints(api, adapter):
 
     templates_url = partial(url, Endpoints.templates)
     api.add_resource(TemplateList, templates_url())
-    api.add_resource(Template, templates_url('<string:lm_id>'))
 
 
 def add_collection_endpoints(api, adapter):

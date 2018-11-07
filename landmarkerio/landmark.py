@@ -30,11 +30,11 @@ class LmAdapter(object):
         pass
 
     @abc.abstractmethod
-    def load_lm(self, asset_id, lm_id):
+    def load_lm(self, asset_id):
         pass
 
     @abc.abstractmethod
-    def save_lm(self, asset_id, lm_id, lm_json):
+    def save_lm(self, asset_id, lm_json):
         pass
 
 
@@ -44,25 +44,25 @@ class FileLmAdapter(LmAdapter):
     local filesystem.
     """
 
-    def load_lm(self, asset_id, lm_id):
-        fp = self.lm_fp(asset_id, lm_id)
+    def load_lm(self, asset_id):
+        fp = self.lm_fp(asset_id)
         if not p.isfile(fp):
             raise IOError
         with open(fp, 'rb') as f:
             lm = json.load(f)
             return lm
 
-    def save_lm(self, asset_id, lm_id, lm_json):
+    def save_lm(self, asset_id, lm_json):
         r"""
         Persist a given landmark definition to disk.
         """
-        fp = self.lm_fp(asset_id, lm_id)
+        fp = self.lm_fp(asset_id)
         with open(fp, 'wb') as f:
             json.dump(lm_json, f, sort_keys=True, indent=4,
                       separators=(',', ': '))
 
     @abc.abstractmethod
-    def lm_fp(self, asset_id, lm_id):
+    def lm_fp(self, asset_id):
         # where a landmark should exist
         pass
 
@@ -79,9 +79,9 @@ class SeparateDirFileLmAdapter(FileLmAdapter):
             os.mkdir(self.lm_dir)
         print('landmarks: {}'.format(self.lm_dir))
 
-    def lm_fp(self, asset_id, lm_id):
+    def lm_fp(self, asset_id):
         # where a landmark should exist
-        return safe_join(safe_join(self.lm_dir, asset_id), lm_id + FileExt.lm)
+        return safe_join(safe_join(self.lm_dir, asset_id), FileExt.lm)
 
     def lm_ids(self, asset_id):
         r"""
@@ -112,14 +112,14 @@ class SeparateDirFileLmAdapter(FileLmAdapter):
         return filter(lambda f: p.isfile(f) and
                                 p.splitext(f)[-1] == FileExt.lm, g)
 
-    def save_lm(self, asset_id, lm_id, lm_json):
+    def save_lm(self, asset_id, lm_json):
         r"""
         Persist a given landmark definition to disk.
         """
         subject_dir = safe_join(self.lm_dir, asset_id)
         if not p.isdir(subject_dir):
             os.mkdir(subject_dir)
-        super(SeparateDirFileLmAdapter, self).save_lm(asset_id, lm_id, lm_json)
+        super(SeparateDirFileLmAdapter, self).save_lm(asset_id, lm_json)
 
 
 class InplaceFileLmAdapter(FileLmAdapter):
@@ -145,8 +145,7 @@ class InplaceFileLmAdapter(FileLmAdapter):
                 for aid in self.ids_to_paths
                 if self._lm_path_for_asset_id(aid).is_file()}
 
-    def lm_fp(self, asset_id, lm_id):
-        # note the lm_id is ignored. We just always return the .ljson file.
+    def lm_fp(self, asset_id):
         return str(self._lm_path_for_asset_id(asset_id))
 
     def _lm_path_for_asset_id(self, asset_id):
