@@ -1,12 +1,11 @@
 from functools import partial, wraps
 from flask import Flask, request, send_file, make_response, Response
-from flask.ext.restful import abort, Api, Resource
-#from flask.ext.restful.utils import cors
-import cors  # until twilio/flask-restful/pull/276 is merged, see the package
+from flask_restful import abort, Api, Resource
+from flask_restful.utils import cors
 from landmarkerio import Server, Endpoints, Mimetype
 
-url = lambda *x: '/' + '/'.join(x)
-asset = lambda f: partial(f, '<string:asset_id>')
+url = lambda *x: "/" + "/".join(x)
+asset = lambda f: partial(f, "<string:asset_id>")
 
 
 def safe_send(x, fail_message):
@@ -21,11 +20,12 @@ def safe_send_file(mimetype, path, fail_message, gzip=False):
     try:
         r = make_response(send_file(path, mimetype=mimetype))
         if gzip:
-            r.headers['Content-Encoding'] = 'gzip'
+            r.headers["Content-Encoding"] = "gzip"
         return r
     except Exception as e:
         print(e)
         return abort(404, message=fail_message)
+
 
 image_file = partial(safe_send_file, Mimetype.jpeg)
 json_file = partial(safe_send_file, Mimetype.json)
@@ -49,9 +49,11 @@ def basicauth(username, password):
     def authenticate():
         """Sends a 401 response that enables basic auth"""
         return Response(
-            'Could not verify your access level for that URL.\n'
-            'You have to login with proper credentials', 401,
-            {'WWW-Authenticate': 'Basic realm="Login Required"'})
+            "Could not verify your access level for that URL.\n"
+            "You have to login with proper credentials",
+            401,
+            {"WWW-Authenticate": 'Basic realm="Login Required"'},
+        )
 
     def requires_auth(f):
         @wraps(f)
@@ -60,6 +62,7 @@ def basicauth(username, password):
             if not auth or not check_auth(auth.username, auth.password):
                 return authenticate()
             return f(*args, **kwargs)
+
         return decorated
 
     return requires_auth
@@ -93,22 +96,22 @@ def lmio_api(dev=False, username=None, password=None):
     # 1. configure CORS decorator
 
     cors_dict = {
-        'allowed_origins': Server.allowed_origins,
-        'headers': ['Origin', 'X-Requested-With', 'Content-Type', 'Accept'],
-        'methods': ['HEAD', 'GET', 'POST', 'PATCH', 'PUT', 'OPTIONS', 'DELETE'],
-        'credentials': True
+        "origin": Server.allowed_origins,
+        "headers": ["Origin", "X-Requested-With", "Content-Type", "Accept"],
+        "methods": ["HEAD", "GET", "POST", "PATCH", "PUT", "OPTIONS", "DELETE"],
+        "credentials": True,
     }
 
     if dev:
         # in development mode we can't use basic auth
-        cors_dict['credentials'] = False
+        cors_dict["credentials"] = False
         app.debug = True
 
     # create the cors decorator
     decorators = [cors.crossdomain(**cors_dict)]
 
     if username is not None and password is not None:
-        print('enabling basic auth')
+        print("enabling basic auth")
         # note the we cors is the last decorator -> the first that is hit. This
         # is what we want as CORS will detect OPTIONS requests and allow them
         # immediately. All other requests will be sent through the basicauth
@@ -122,12 +125,10 @@ def lmio_api(dev=False, username=None, password=None):
 
 def add_mode_endpoint(api, mode):
 
-    if mode not in ['image', 'mesh']:
-        raise ValueError("Mode can only be 'image' or 'mesh', "
-                         "not {}".format(mode))
+    if mode not in ["image", "mesh"]:
+        raise ValueError("Mode can only be 'image' or 'mesh', " "not {}".format(mode))
 
     class Mode(Resource):
-
         def get(self):
             return mode
 
@@ -153,7 +154,6 @@ def add_lm_endpoints(api, lm_adapter, template_adapter):
     """
 
     class Landmark(Resource):
-
         def get(self, asset_id, lm_id):
             err = "{} does not have {} landmarks".format(asset_id, lm_id)
             try:
@@ -169,63 +169,56 @@ def add_lm_endpoints(api, lm_adapter, template_adapter):
                 return lm_adapter.save_lm(asset_id, lm_id, request.json)
             except Exception as e:
                 print(e)
-                return abort(409, message="{}:{} unable to "
-                                          "save".format(asset_id, lm_id))
+                return abort(
+                    409, message="{}:{} unable to " "save".format(asset_id, lm_id)
+                )
 
         # Need this here to enable CORS put see http://mzl.la/1rCDkWX
         def options(self, asset_id, lm_id):
             pass
 
     class LandmarkList(Resource):
-
         def get(self):
             return lm_adapter.asset_id_to_lm_id()
 
     class LandmarkListForId(Resource):
-
         def get(self, asset_id):
             return lm_adapter.lm_ids(asset_id)
 
     lm_url = partial(url, Endpoints.landmarks)
     api.add_resource(LandmarkList, lm_url())
     api.add_resource(LandmarkListForId, asset(lm_url)())
-    api.add_resource(Landmark, asset(lm_url)('<string:lm_id>'))
+    api.add_resource(Landmark, asset(lm_url)("<string:lm_id>"))
 
 
 def add_template_endpoints(api, adapter):
-
     class Template(Resource):
-
         def get(self, lm_id):
             err = "{} template does not exist".format(lm_id)
             return safe_send(adapter.load_template(lm_id), err)
 
     class TemplateList(Resource):
-
         def get(self):
             return adapter.template_ids()
 
     templates_url = partial(url, Endpoints.templates)
     api.add_resource(TemplateList, templates_url())
-    api.add_resource(Template, templates_url('<string:lm_id>'))
+    api.add_resource(Template, templates_url("<string:lm_id>"))
 
 
 def add_collection_endpoints(api, adapter):
-
     class Collection(Resource):
-
         def get(self, collection_id):
             err = "{} collection not exist".format(collection_id)
             return safe_send(adapter.collection(collection_id), err)
 
     class CollectionList(Resource):
-
         def get(self):
             return adapter.collection_ids()
 
     collections_url = partial(url, Endpoints.collections)
     api.add_resource(CollectionList, collections_url())
-    api.add_resource(Collection, collections_url('<string:collection_id>'))
+    api.add_resource(Collection, collections_url("<string:collection_id>"))
 
 
 def add_image_endpoints(api, adapter):
@@ -243,18 +236,15 @@ def add_image_endpoints(api, adapter):
     """
 
     class ImageList(Resource):
-
         def get(self):
             return adapter.asset_ids()
 
     class Texture(Resource):
-
         def get(self, asset_id):
             err = "{} does not have a texture".format(asset_id)
             return image_file(adapter.texture_file(asset_id), err)
 
     class Thumbnail(Resource):
-
         def get(self, asset_id):
             err = "{} does not have a thumbnail".format(asset_id)
             return image_file(adapter.thumbnail_file(asset_id), err)
@@ -270,15 +260,12 @@ def add_image_endpoints(api, adapter):
 
 
 def add_mesh_endpoints(api, adapter):
-
     class Mesh(Resource):
-
         def get(self, asset_id):
             err = "{} is not an available mesh".format(asset_id)
             return gzip_binary_file(adapter.mesh(asset_id), err)
 
     class MeshList(Resource):
-
         def get(self):
             return adapter.asset_ids()
 

@@ -2,6 +2,10 @@ package:
   name: landmarkerio
   version: {{ environ['CONDACI_VERSION'] }}
 
+build:
+  number: 0
+  script: python setup.py install --single-version-externally-managed --record=record.txt && python setup.py sdist
+
 requirements:
   build:
     - python
@@ -9,14 +13,13 @@ requirements:
 
   run:
     - python
-    - pathlib 1.0  # [py2k]
-    - menpo 0.7.*
-    - menpo3d 0.4.*
-    - flask 0.10.1
-    - flask-restful 0.2.12
-    - cherrypy 3.8.0
-    - joblib 0.8.4
-    - pyyaml 3.11
+    - menpo<0.12.0
+    - menpo3d
+    - flask>=1
+    - flask-restful
+    - cherrypy
+    - joblib
+    - pyyaml
 
 test:
   imports:
