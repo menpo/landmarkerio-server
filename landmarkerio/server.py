@@ -19,7 +19,10 @@ def safe_send(x, fail_message):
 
 async def safe_send_file(mimetype, path, fail_message, gzip=False):
     try:
-        return await response.file(path, mime_type=mimetype)
+        headers = None
+        if gzip:
+            headers = {"Content-Encoding": "gzip"}
+        return await response.file(path, mime_type=mimetype, headers=headers)
     except Exception as e:
         print(e)
         return abort(404, message=fail_message)
