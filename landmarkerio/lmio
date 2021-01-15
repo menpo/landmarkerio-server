@@ -4,7 +4,7 @@ import webbrowser
 import tempfile
 
 from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
-from landmarkerio.serverconfigs import serve_from_cache, serve_with_cherrypy
+from landmarkerio.serverconfigs import serve_from_cache
 from landmarkerio.landmark import InplaceFileLmAdapter
 from landmarkerio import TEMPLATE_DINAME
 
@@ -29,7 +29,7 @@ def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
                            collection_dir=collection_dir, dev=dev)
     if not dev:
         webbrowser.open("http://insecure.landmarker.io/#server=http%3A%2F%2Flocalhost%3A{}".format(port))
-    serve_with_cherrypy(app, port=port, public=public)
+    app.run(host='0.0.0.0' if ns.public else "localhost", port=port)
 
 
 if __name__ == "__main__":

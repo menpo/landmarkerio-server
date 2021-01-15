@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from landmarkerio.serverconfigs import serve_from_cache, serve_with_cherrypy
+from landmarkerio.serverconfigs import serve_from_cache
 from landmarkerio import TEMPLATE_DINAME
 from landmarkerio.landmark import SeparateDirFileLmAdapter
 from landmarkerio.utils import parse_username_and_password_file
@@ -62,4 +62,5 @@ if __name__ == "__main__":
         port = 5000
     else:
         port = int(ns.port)
-    serve_with_cherrypy(app, port=port, public=ns.public)
+
+    app.run(host='0.0.0.0' if ns.public else "localhost", port=port, debug=ns.dev)

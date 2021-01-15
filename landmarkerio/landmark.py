@@ -48,7 +48,7 @@ class FileLmAdapter(LmAdapter):
         fp = self.lm_fp(asset_id, lm_id)
         if not p.isfile(fp):
             raise IOError
-        with open(fp, 'rb') as f:
+        with open(fp, "rb") as f:
             lm = json.load(f)
             return lm
 
@@ -57,9 +57,8 @@ class FileLmAdapter(LmAdapter):
         Persist a given landmark definition to disk.
         """
         fp = self.lm_fp(asset_id, lm_id)
-        with open(fp, 'wb') as f:
-            json.dump(lm_json, f, sort_keys=True, indent=4,
-                      separators=(',', ': '))
+        with open(fp, "w") as f:
+            json.dump(lm_json, f, sort_keys=True, indent=4, separators=(",", ": "))
 
     @abc.abstractmethod
     def lm_fp(self, asset_id, lm_id):
@@ -68,7 +67,6 @@ class FileLmAdapter(LmAdapter):
 
 
 class SeparateDirFileLmAdapter(FileLmAdapter):
-
     def __init__(self, lm_dir):
         if lm_dir is None:
             # By default place the landmarks in the cwd
@@ -77,7 +75,7 @@ class SeparateDirFileLmAdapter(FileLmAdapter):
         if not p.isdir(self.lm_dir):
             print("Warning the landmark dir does not exist - creating...")
             os.mkdir(self.lm_dir)
-        print('landmarks: {}'.format(self.lm_dir))
+        print("landmarks: {}".format(self.lm_dir))
 
     def lm_fp(self, asset_id, lm_id):
         # where a landmark should exist
@@ -107,10 +105,9 @@ class SeparateDirFileLmAdapter(FileLmAdapter):
     def _lm_paths(self, asset_id=None):
         # what landmarks do exist and where
         if asset_id is None:
-            asset_id = '*'
-        g = glob.glob(p.join(safe_join(self.lm_dir, asset_id), '*'))
-        return filter(lambda f: p.isfile(f) and
-                                p.splitext(f)[-1] == FileExt.lm, g)
+            asset_id = "*"
+        g = glob.glob(p.join(safe_join(self.lm_dir, asset_id), "*"))
+        return filter(lambda f: p.isfile(f) and p.splitext(f)[-1] == FileExt.lm, g)
 
     def save_lm(self, asset_id, lm_id, lm_json):
         r"""
@@ -123,16 +120,17 @@ class SeparateDirFileLmAdapter(FileLmAdapter):
 
 
 class InplaceFileLmAdapter(FileLmAdapter):
-
     def __init__(self, asset_ids_to_paths):
         self.ids_to_paths = asset_ids_to_paths
-        print('landmarks served inplace - found {} asset with '
-              'landmarks'.format(len(self.asset_id_to_lm_id())))
+        print(
+            "landmarks served inplace - found {} asset with "
+            "landmarks".format(len(self.asset_id_to_lm_id()))
+        )
 
     def lm_ids(self, asset_id):
         # always the same!
         if asset_id in self.ids_to_paths:
-            return ['inplace']
+            return ["inplace"]
         else:
             raise ValueError
 
@@ -141,9 +139,11 @@ class InplaceFileLmAdapter(FileLmAdapter):
         Return a dict mapping asset ID's to landmark IDs that are
         present on this server for that asset.
         """
-        return {aid: ['inplace']
-                for aid in self.ids_to_paths
-                if self._lm_path_for_asset_id(aid).is_file()}
+        return {
+            aid: ["inplace"]
+            for aid in self.ids_to_paths
+            if self._lm_path_for_asset_id(aid).is_file()
+        }
 
     def lm_fp(self, asset_id, lm_id):
         # note the lm_id is ignored. We just always return the .ljson file.
