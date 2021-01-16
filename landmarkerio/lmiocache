@@ -1,37 +1,73 @@
 #!/usr/bin/env python
-# encoding: utf-8
-from landmarkerio.cache import (cache_assets, filename_as_asset_id,
-                                filepath_as_asset_id_under_dir)
+from pathlib import Path
 
-if __name__ == "__main__":
-    from argparse import ArgumentParser
+from loguru import logger
+
+from landmarkerio.cache import (
+    cache_assets,
+    filename_as_asset_id,
+    filepath_as_asset_id_under_dir,
+)
+from argparse import ArgumentParser, Namespace
+
+
+def build_argparser() -> ArgumentParser:
     parser = ArgumentParser(
         description=r"""
         Cache assets ready for serving to landmarker.io.
-        """)
-    parser.add_argument("mode", help="'image' or 'mesh'")
-    parser.add_argument("path", help="path that will be searched for assets")
-    parser.add_argument("cache",
-                        help="The directory used to cache assets for serving")
-    parser.add_argument("-r", "--recursive", action='store_true',
-                        help="If provided the path is searched recursively for"
-                             " assets")
-    parser.add_argument("-e", "--ext",
-                        help="If provided only files with this extension "
-                             "will be cached.")
-    parser.add_argument('-g', '--glob',
-                        help="A custom (recursive) glob used for finding "
-                             "assets under the path. If provided --ext and "
-                             "--recursive flags are ignored")
-    parser.add_argument("-f", "--filename", action='store_true',
-                        help="Use filenames as IDs. If not, full paths are "
-                             "used (underscores for dirs)")
-    ns = parser.parse_args()
+        """
+    )
+    parser.add_argument(
+        "mode", choices=("image", "mesh"), help="Mode, either 'image' or 'mesh'"
+    )
+    parser.add_argument("path", type=Path, help="path that will be searched for assets")
+    parser.add_argument(
+        "cache", type=Path, help="The directory used to cache assets for serving"
+    )
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        help="If provided the path is searched recursively for" " assets",
+    )
+    parser.add_argument(
+        "-e",
+        "--ext",
+        help="If provided only files with this extension " "will be cached.",
+    )
+    parser.add_argument(
+        "-g",
+        "--glob",
+        help="A custom (recursive) glob used for finding assets under the path. If "
+        "provided --ext and --recursive flags are ignored",
+    )
+    parser.add_argument(
+        "-f",
+        "--filename",
+        action="store_true",
+        help="Use filenames as IDs. If not, full paths are used (underscores for dirs)",
+    )
+    return parser
+
+
+def main(ns: Namespace) -> None:
     if ns.filename:
-        print('Using filename as asset_id')
+        logger.info("Using filename as asset_id")
         identifier_f = filename_as_asset_id
     else:
-        print('Using full path as asset_id')
+        logger.info("Using full path as asset_id")
         identifier_f = filepath_as_asset_id_under_dir(ns.path)
-    cache_assets(ns.mode, identifier_f, ns.path, ns.cache,
-                 recursive=ns.recursive, ext=ns.ext, glob=ns.glob)
+
+    cache_assets(
+        ns.mode,
+        identifier_f,
+        ns.path,
+        ns.cache,
+        recursive=ns.recursive,
+        ext=ns.ext,
+        glob=ns.glob,
+    )
+
+
+if __name__ == "__main__":
+    main(build_argparser().parse_args())

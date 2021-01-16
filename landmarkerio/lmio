@@ -1,95 +1,149 @@
 #!/usr/bin/env python
-# encoding: utf-8
-import webbrowser
 import tempfile
+import webbrowser
+from argparse import ArgumentParser, Namespace
+from pathlib import Path
+from typing import Optional
 
-from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
-from landmarkerio.serverconfigs import serve_from_cache
-from landmarkerio.landmark import InplaceFileLmAdapter
 from landmarkerio import TEMPLATE_DINAME
+from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
+from landmarkerio.landmark import InplaceFileLmAdapter
+from landmarkerio.servers.serve import serve_from_cache
 
 
-def main(mode, asset_dir, recursive=False, ext=None, template_dir=None,
-         collection_dir=None, cache_dir=None, dev=False, port=5000, public=False, upgrade_templates=False,
-         glob=None):
-    r"""
-
-    """
+def launch_server(
+    mode: str,
+    asset_dir: Path,
+    recursive: bool = False,
+    ext: Optional[str] = None,
+    template_dir: Optional[Path] = None,
+    collection_dir: Optional[Path] = None,
+    cache_dir: Optional[Path] = None,
+    dev: bool = False,
+    port: int = 5000,
+    public: bool = False,
+    glob: Optional[str] = None,
+) -> None:
     if cache_dir is None:
-        cache_dir = tempfile.mkdtemp()
+        cache_dir = Path(tempfile.mkdtemp())
+
     identifier_f = filepath_as_asset_id_under_dir(asset_dir)
-    _, asset_ids_to_path = cache_assets(mode, identifier_f, asset_dir,
-                                        cache_dir, recursive=recursive,
-                                        ext=ext, glob=glob)
+    _, asset_ids_to_path = cache_assets(
+        mode,
+        identifier_f,
+        asset_dir,
+        cache_dir,
+        recursive=recursive,
+        ext=ext,
+        glob=glob,
+    )
+
     # build an inplace adapter to serve landmarks found in-situ next to assets
     lm_adapter = InplaceFileLmAdapter(asset_ids_to_path)
-    app = serve_from_cache(mode, cache_dir, lm_adapter,
-                           template_dir=template_dir,
-                           upgrade_templates=upgrade_templates,
-                           collection_dir=collection_dir, dev=dev)
+    app = serve_from_cache(
+        mode,
+        cache_dir,
+        lm_adapter,
+        template_dir=template_dir,
+        collection_dir=collection_dir,
+    )
+
     if not dev:
-        webbrowser.open("http://insecure.landmarker.io/#server=http%3A%2F%2Flocalhost%3A{}".format(port))
-    app.run(host='0.0.0.0' if ns.public else "localhost", port=port)
+        webbrowser.open(
+            f"http://insecure.landmarker.io/#server=http%3A%2F%2Flocalhost%3A{port}"
+        )
+
+    app.run(host="0.0.0.0" if public else "localhost", port=port, debug=dev)
 
 
-if __name__ == "__main__":
-    from argparse import ArgumentParser
+def build_argparser() -> ArgumentParser:
     parser = ArgumentParser(
         description=r"""
         Serve landmarks and assets for landmarker.io through Menpo.
-        """)
-    parser.add_argument("mode", help="'image' or 'mesh'")
-    parser.add_argument("path", help="path that will be searched for assets")
-    parser.add_argument("-r", "--recursive", action='store_true',
-                        help="If provided the path is searched recursively for"
-                             " assets")
-    parser.add_argument("-e", "--ext",
-                        help="If provided only files with this extension "
-                             "will be imported.")
-    parser.add_argument('-g', '--glob',
-                        help="A custom (recursive) glob used for finding "
-                             "assets under the path. If provided --ext and "
-                             "--recursive flags are ignored")
-    parser.add_argument("-t", "--templates",
-                        help="The directory containing the template files. "
-                             "If None provided taken as "
-                             "'~/{}'".format(TEMPLATE_DINAME))
-    parser.add_argument("--cache",
-                        help="The directory used to cache assets for serving."
-                             " If None provided a temporary directory is "
-                             "used. This cache is populated the first time "
-                             "the "
-                             "server is run. Subsequent runs verify the cache "
-                             "but do not have to rebuild it. Once you have "
-                             "finished annotating assets delete this folder "
-                             "to reclaim disk space. Note that if this flag "
-                             "is not provided, the cache will have to be "
-                             "rebuilt every time the server is started.")
-    parser.add_argument("-c", "--collections",
-                        help="The directory containing the collection files. "
-                             "If None provided an 'all' collection will be "
-                             "used with all assets present.")
-    parser.add_argument("--dev", action='store_true',
-                        help="Listen to all CORS requests. Useful for "
-                             "development on localhost.")
-    parser.add_argument("--public", action='store_true',
-                        help="Listen to public requests (0.0.0.0).")
-    parser.add_argument("-p", "--port",
-                        help="The port to host the server on. 5000 by default")
-    parser.add_argument('--upgrade-templates', action='store_true',
-                        help="Rewrite old .txt template to the new .yml "
-                             "format and delete old .txt files from the "
-                             "template directory (consider backing up the"
-                             "directory first).")
-    ns = parser.parse_args()
-    port = ns.port
+        """
+    )
+    parser.add_argument(
+        "mode", choices=("image", "mesh"), help="Mode, either 'image' or 'mesh'"
+    )
+    parser.add_argument("path", type=Path, help="path that will be searched for assets")
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        help="If provided the path is searched recursively for" " assets",
+    )
+    parser.add_argument(
+        "-e",
+        "--ext",
+        help="If provided only files with this extension " "will be imported.",
+    )
+    parser.add_argument(
+        "-g",
+        "--glob",
+        help="A custom (recursive) glob used for finding assets under the path. If "
+        "provided --ext and --recursive flags are ignored",
+    )
+    parser.add_argument(
+        "-t",
+        "--templates",
+        type=Path,
+        help="The directory containing the template files. "
+        "If None provided taken as "
+        "'~/{}'".format(TEMPLATE_DINAME),
+    )
+    parser.add_argument(
+        "--cache",
+        type=Path,
+        help="The directory used to cache assets for serving. If None provided a "
+        "temporary directory is used. This cache is populated the first time "
+        "the server is run. Subsequent runs verify the cache but do not "
+        "have to rebuild it. Once you have finished annotating assets "
+        "delete this folder to reclaim disk space. Note that if this flag "
+        "is not provided, the cache will have to be rebuilt every time the "
+        "server is started.",
+    )
+    parser.add_argument(
+        "-c",
+        "--collections",
+        type=Path,
+        help="The directory containing the collection files. "
+        "If None provided an 'all' collection will be used with all assets present.",
+    )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Listen to all CORS requests. Useful for development on localhost.",
+    )
+    parser.add_argument(
+        "--public", action="store_true", help="Listen to public requests (0.0.0.0)."
+    )
+    parser.add_argument(
+        "-p", "--port", help="The port to host the server on. 5000 by default"
+    )
+    return parser
+
+
+def main(ns: Namespace) -> None:
+    port: int = ns.port
     if port is None:
         port = 5000
     else:
         port = int(port)
-    ns = parser.parse_args()
-    main(ns.mode, ns.path, recursive=ns.recursive, ext=ns.ext,
-         template_dir=ns.templates, collection_dir=ns.collections,
-         cache_dir=ns.cache, dev=ns.dev, port=port, public=ns.public,
-         upgrade_templates=ns.upgrade_templates,
-         glob=ns.glob)
+
+    launch_server(
+        ns.mode,
+        ns.path,
+        recursive=ns.recursive,
+        ext=ns.ext,
+        template_dir=ns.templates,
+        collection_dir=ns.collections,
+        cache_dir=ns.cache,
+        dev=ns.dev,
+        port=port,
+        public=ns.public,
+        glob=ns.glob,
+    )
+
+
+if __name__ == "__main__":
+    main(build_argparser().parse_args())

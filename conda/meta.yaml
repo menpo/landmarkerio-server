@@ -15,15 +15,26 @@ requirements:
     - python
     - menpo<0.12.0
     - menpo3d
-    - flask>=1
-    - flask-restful
-    - cherrypy
+    - sanic
+    - sanic-cors
+    - loguru
     - joblib
     - pyyaml
 
 test:
+  requires:
+    - pytest
+    - pytest-mypy
+
   imports:
     - landmarkerio
+
+  commands:
+    # This is crazy but we need to work around https://github.com/python/mypy/issues/8567
+    # which we do by basically soft linking the output packages into a temporary directory
+    # to avoid the mypy site packages check
+    - rm -fr /tmp/landmarkerio && ln -s $SP_DIR/landmarkerio /tmp/landmarkerio
+    - pytest /tmp/landmarkerio --mypy -v
 
 about:
   home: https://github.com/menpo/landmarkerio-server

@@ -1,6 +1,6 @@
 from os.path import join
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 
 def get_version_and_cmdclass(package_path):
@@ -20,9 +20,9 @@ def get_version_and_cmdclass(package_path):
 install_requires = [
     "menpo<0.12.0",
     "menpo3d",
-    "Flask>=1",
-    "Flask-RESTful",
-    "CherryPy",
+    "sanic",
+    "sanic-cors",
+    "loguru",
     "joblib",
     "PyYaml",
 ]
@@ -42,10 +42,10 @@ setup(
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
     ],
-    packages=["landmarkerio"],
+    package_data={"landmarkerio": ["default_templates/*"]},
+    packages=find_packages(),
     install_requires=install_requires,
     scripts=[
         join("landmarkerio", "lmio"),
