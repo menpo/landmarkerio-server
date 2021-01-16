@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 import yaml
-from flask import safe_join
 from loguru import logger
 
 from landmarkerio import FileExt, TEMPLATE_DINAME
@@ -162,7 +161,7 @@ class FileTemplateAdapter(TemplateAdapter):
         return list(self.template_dir.glob("*" + FileExt.template))
 
     def load_template(self, lm_id: str):
-        fp = safe_join(str(self.template_dir), lm_id + FileExt.template)
+        fp = self.template_dir / (lm_id + FileExt.template)
         return load_template(fp, self.n_dims)
 
 

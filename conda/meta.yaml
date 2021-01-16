@@ -2,6 +2,9 @@ package:
   name: landmarkerio
   version: {{ environ['CONDACI_VERSION'] }}
 
+source:
+  path: ../
+
 build:
   number: 0
   script: python setup.py install --single-version-externally-managed --record=record.txt && python setup.py sdist
@@ -25,6 +28,9 @@ test:
   requires:
     - pytest
     - pytest-mypy
+
+  files:
+    - mypy.ini
 
   imports:
     - landmarkerio

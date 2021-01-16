@@ -13,12 +13,6 @@ from landmarkerio.types import PathLike
 
 
 class LandmarkAdapter(abc.ABC):
-    r"""
-    Abstract definition of an adapter that can be passed to app_for_adapter in
-    order to generate a legal Flask implementation of landmarker.io's REST API
-    for Landmarks.
-    """
-
     @abc.abstractmethod
     def asset_id_to_lm_id(self) -> Dict[str, Sequence[str]]:
         pass
