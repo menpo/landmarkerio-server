@@ -2,6 +2,13 @@ package:
   name: landmarkerio
   version: {{ environ['CONDACI_VERSION'] }}
 
+source:
+  path: ../
+
+build:
+  number: 0
+  script: python setup.py install --single-version-externally-managed --record=record.txt && python setup.py sdist
+
 requirements:
   build:
     - python
@@ -9,18 +16,31 @@ requirements:
 
   run:
     - python
-    - pathlib 1.0  # [py2k]
-    - menpo 0.7.*
-    - menpo3d 0.4.*
-    - flask 0.10.1
-    - flask-restful 0.2.12
-    - cherrypy 3.8.0
-    - joblib 0.8.4
-    - pyyaml 3.11
+    - menpo<0.12.0
+    - menpo3d
+    - sanic
+    - sanic-cors
+    - loguru
+    - joblib
+    - pyyaml
 
 test:
+  requires:
+    - pytest
+    - pytest-mypy
+
+  files:
+    - mypy.ini
+
   imports:
     - landmarkerio
+
+  commands:
+    # This is crazy but we need to work around https://github.com/python/mypy/issues/8567
+    # which we do by basically soft linking the output packages into a temporary directory
+    # to avoid the mypy site packages check
+    - rm -fr /tmp/landmarkerio && ln -s $SP_DIR/landmarkerio /tmp/landmarkerio
+    - pytest /tmp/landmarkerio --mypy -v
 
 about:
   home: https://github.com/menpo/landmarkerio-server
