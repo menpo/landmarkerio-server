@@ -18,6 +18,7 @@ def get_version_and_cmdclass(package_path):
 
 
 install_requires = [
+    "numpy",
     "menpo<0.12.0",
     "menpo3d",
     "sanic",
