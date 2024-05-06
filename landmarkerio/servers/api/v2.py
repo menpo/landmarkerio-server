@@ -1,6 +1,6 @@
 from loguru import logger
 from sanic import Blueprint
-from sanic.exceptions import abort
+from sanic.exceptions import SanicException
 from sanic.response import json
 
 from landmarkerio.asset import ImageAdapter, MeshAdapter
@@ -33,7 +33,7 @@ def build_v2_blueprint(
         try:
             return json(collection_adapter.collection(collection_id))
         except MissingCollection as e:
-            return abort(404, str(e))
+            raise SanicException(str(e), status_code=404)
 
     @api.route("/templates")
     async def templates(request):
@@ -44,7 +44,7 @@ def build_v2_blueprint(
         try:
             return json(template_adapter.load_template(t_id))
         except MissingTemplate as e:
-            return abort(404, str(e))
+            raise SanicException(str(e), status_code=404)
 
     @api.route("/images")
     async def images(request):
@@ -55,14 +55,18 @@ def build_v2_blueprint(
         try:
             return await serve_image_file(image_adapter.texture_path(asset_id))
         except FileNotFoundError:
-            return abort(404, f"Unable to find texture for {asset_id}")
+            raise SanicException(
+                status_code=404, message=f"Unable to find texture for {asset_id}"
+            )
 
     @api.route("/thumbnails/<asset_id>")
     async def thumbnail(request, asset_id):
         try:
             return await serve_image_file(image_adapter.thumbnail_path(asset_id))
         except FileNotFoundError:
-            return abort(404, f"Unable to find thumbnail for {asset_id}")
+            raise SanicException(
+                status_code=404, message=f"Unable to find thumbnail for {asset_id}"
+            )
 
     @api.route("/landmarks")
     async def landmarks(request):
@@ -73,7 +77,7 @@ def build_v2_blueprint(
         try:
             return json(landmark_adapter.landmark_ids(asset_id))
         except ValueError as e:
-            return abort(404, str(e))
+            raise SanicException(status_code=404, message=str(e))
 
     @api.route("/landmarks/<asset_id>/<lm_id>")
     async def landmark(request, asset_id, lm_id):
@@ -84,9 +88,9 @@ def build_v2_blueprint(
                 logger.exception(f"Unable to load landmarks for {asset_id}/{lm_id}")
                 return json(template_adapter.load_template(lm_id))
             except MissingTemplate:
-                abort(
-                    404,
-                    f"{asset_id} does not have {lm_id} landmarks and no valid template found",
+                raise SanicException(
+                    status_code=404,
+                    message=f"{asset_id} does not have {lm_id} landmarks and no valid template found",
                 )
 
     @api.route("/landmarks/<asset_id>/<lm_id>", methods=("PUT",))
@@ -96,7 +100,9 @@ def build_v2_blueprint(
             return json("success")
         except BaseException:
             logger.exception(f"Unable to save landmarks for {asset_id}/{lm_id}")
-            return abort(409, message=f"{asset_id}:{lm_id} unable to save")
+            raise SanicException(
+                status_code=409, message=f"{asset_id}:{lm_id} unable to save"
+            )
 
     @api.route("/meshes")
     async def meshes(request):
@@ -107,6 +113,6 @@ def build_v2_blueprint(
         try:
             return await serve_gzip_binary_file(mesh_adapter.mesh_path(asset_id))
         except FileNotFoundError:
-            return abort(404, f"Unable to find mesh for {asset_id}")
+            raise SanicException(f"Unable to find mesh for {asset_id}", status_code=404)
 
     return api
