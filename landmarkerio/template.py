@@ -17,6 +17,11 @@ class Group(NamedTuple):
     label: str
     n: int
     indices: Sequence[Tuple[int, int]]
+    # Points that stay where they are when the group is resampled (indices within the group)
+    anchors: Sequence[int] = ()
+    # For some of the other points, the fraction of the arc length between the anchors around it at
+    # which it goes when resampling (indices within the group); equal steps without it
+    spacing: Optional[Dict[int, float]] = None
 
 
 class MissingTemplate(ValueError):
@@ -43,6 +48,43 @@ def parse_connectivity(index_lst: Sequence[str], n: int) -> Sequence[Tuple[int, 
     return index
 
 
+def parse_anchors(label: str, n: int, anchors: Any) -> Sequence[int]:
+    if anchors is None:
+        return ()
+    if not isinstance(anchors, list) or not all(
+        isinstance(i, int) and not isinstance(i, bool) and 0 <= i < n for i in anchors
+    ):
+        raise ValueError(
+            f"anchors of '{label}' must be a list of point indices between 0 and {n - 1}"
+        )
+    return tuple(anchors)
+
+
+def parse_spacing(
+    label: str, n: int, spacing: Any, anchors: Sequence[int]
+) -> Optional[Dict[int, float]]:
+    if spacing is None:
+        return None
+    if not isinstance(spacing, dict):
+        raise ValueError(f"spacing of '{label}' must map point indices to fractions")
+    result: Dict[int, float] = {}
+    for key, fraction in spacing.items():
+        if (
+            not isinstance(key, int)
+            or not 0 <= key < n
+            or key in anchors
+            or isinstance(fraction, bool)
+            or not isinstance(fraction, (int, float))
+            or not 0.0 < fraction < 1.0
+        ):
+            raise ValueError(
+                f"spacing of '{label}' must give a fraction between 0 and 1 to points "
+                f"of the group that are not anchors; got {key}: {fraction}"
+            )
+        result[key] = float(fraction)
+    return result
+
+
 def load_yaml_template(filepath: PathLike, n_dims: int):
     with Path(filepath).open("r") as f:
         data = yaml.safe_load(f)
@@ -66,7 +108,9 @@ def load_yaml_template(filepath: PathLike, n_dims: int):
         else:
             indices = []  # Couldn't parse connectivity, safe default
 
-        groups.append(Group(label, n, indices))
+        anchors = parse_anchors(label, n, group.get("anchors"))
+        spacing = parse_spacing(label, n, group.get("spacing"), anchors)
+        groups.append(Group(label, n, indices, anchors, spacing))
 
     return build_json(groups, n_dims)
 
@@ -99,7 +143,16 @@ def build_json(groups: Sequence[Group], n_dims: int) -> Dict[str, Any]:
     labels = []
     for g in groups:
         connectivity += [[j + offset for j in i] for i in g.indices]
-        labels.append({"label": g.label, "mask": list(range(offset, offset + g.n))})
+        entry: Dict[str, Any] = {
+            "label": g.label,
+            "mask": list(range(offset, offset + g.n)),
+        }
+        if g.anchors:
+            entry["anchors"] = [i + offset for i in g.anchors]
+        if g.spacing:
+            # JSON keys are strings
+            entry["spacing"] = {str(i + offset): f for i, f in g.spacing.items()}
+        labels.append(entry)
         offset += g.n
 
     lm_json = {
@@ -115,9 +168,13 @@ def build_json(groups: Sequence[Group], n_dims: int) -> Dict[str, Any]:
 
 
 def group_to_dict(g: Group) -> Dict[str, Any]:
-    data = {"label": g.label, "points": g.n}
+    data: Dict[str, Any] = {"label": g.label, "points": g.n}
     if g.indices:
         data["connectivity"] = [f"{c[0]} {c[1]}" for c in g.indices]
+    if g.anchors:
+        data["anchors"] = list(g.anchors)
+    if g.spacing:
+        data["spacing"] = dict(g.spacing)
     return data
 
 
