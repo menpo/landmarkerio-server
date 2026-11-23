@@ -72,14 +72,37 @@ You get help on the tool just as you would expect
 >> lmio --help
 ```
 
-#### Auto-fit: a model that learns from your annotations
+#### Auto-fit: a model that fits for you
 
 ```
 >> pip install "landmarkerio-server[fit]"
->> lmio image ./path_to_images --fit
+>> lmio image ./path_to_images --fit [fit.yml]
 ```
 
-The server builds a patch-based Active Appearance Model (menpofit) from the images whose landmarks you have *saved* through landmarker.io (images that already come with landmarks do not count, unless you add `--fit-from-all`), and adds each newly saved image to it in the background. Once it has learnt from `--fit-min-images` of them (8 by default), landmarker.io shows an **Auto-fit** button: it refines the landmarks that are on the image, so put them roughly in place first (**Copy Previous** will do) and let the model finish the job. It is undoable, and nothing is saved until you save.
+The server keeps a model and uses it to refine landmarks (and to suggest them for an image that has none). Which model, and where it starts, are in an optional YAML file, not on the command line:
+
+```yaml
+model: patch-aam          # patch-aam (default), holistic-aam, or your own: package.module:Class
+options:                  # the model's constructor arguments
+  patch_sizes: [15, 23]
+  initial_scale: 0.6      # without a drawn box: the mean shape fills this much of the image
+initial_state: faces.pkl  # start from a model you trained elsewhere: it fits before anything is labelled
+save_state: learnt.pkl    # written after every update; use it as initial_state next time
+learn_on_save: true       # learn from each image as you save it (needs a model that can increment)
+from_saved: true          # learn only from images saved through landmarker.io (false: every complete file)
+min_images: 8             # reviewed images before a model is built from scratch (no initial state)
+```
+
+What the server offers follows from what the model can do (`landmarkerio.fit.FitModel`):
+
+| the model has | you get |
+| --- | --- |
+| `fitter` and `fit` (required) | fitting from the current landmarks; a model trained elsewhere works as it is |
+| `increment` | learning from each saved image, on top of the initial state if there is one |
+| `build` | training from scratch on all annotations (so you can begin with none) |
+| `initialize` | fitting an image that has no landmarks: from a box you draw, or the model's own suggestion |
+
+A fit starts from, in this order: a **box you drew**, else the **current landmarks** if all are placed, else the model's own start. It learns and saves nothing. Training from all annotations and fitting every unlabelled image are jobs (`POST /api/v2/fit/train`, `POST /api/v2/fit/predict/<template>`; progress is in `GET /api/v2/fit`), and the files that `predict` writes are marked `"reviewed": false`, so they only count as annotations once you save them.
 
 ### Templates
 

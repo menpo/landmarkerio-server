@@ -9,7 +9,13 @@ from sanic.response import json
 
 from landmarkerio.asset import ImageAdapter, MeshAdapter
 from landmarkerio.collection import CollectionAdapter, MissingCollection
-from landmarkerio.fit import AutoFit, NothingToRefine, NotReady
+from landmarkerio.fit import (
+    AutoFit,
+    Busy,
+    NothingToLearn,
+    NothingToRefine,
+    NotReady,
+)
 from landmarkerio.landmark import LandmarkAdapter
 from landmarkerio.response import serve_gzip_binary_file, serve_image_file
 from landmarkerio.template import MissingTemplate, TemplateAdapter
@@ -128,12 +134,47 @@ def build_v2_blueprint(
                     fit.fit,
                     asset_id,
                     (request.json or {}).get("landmarks", {}).get("points"),
+                    (request.json or {}).get("box"),
                 )
             except (NotReady, NothingToRefine) as e:
                 raise SanicException(str(e), status_code=409)
             data = copy.deepcopy(request.json)
             data["landmarks"]["points"] = points.tolist()
             return json(data)
+
+        @api.route("/fit/box/<asset_id>")
+        async def fit_box(request, asset_id):
+            r"""The box the model would start from, ``[[row_min, col_min], [row_max, col_max]]``."""
+            if asset_id not in fit.ids_to_paths:
+                raise SanicException(f"Unable to find {asset_id}", status_code=404)
+            try:
+                box = await asyncio.get_running_loop().run_in_executor(
+                    None, fit.suggest_box, asset_id
+                )
+            except (NotReady, NothingToRefine) as e:
+                raise SanicException(str(e), status_code=409)
+            return json(box.tolist())
+
+        @api.route("/fit/train", methods=("POST",))
+        async def fit_train(request):
+            r"""Learn from all the annotations again, as a background job (see GET /fit)."""
+            try:
+                return json(fit.train())
+            except (Busy, NothingToLearn) as e:
+                raise SanicException(str(e), status_code=409)
+
+        @api.route("/fit/predict/<t_id>", methods=("POST",))
+        async def fit_predict(request, t_id):
+            r"""Fit every image without landmarks and write them as not reviewed, in the layout
+            of the template, as a background job (see GET /fit)."""
+            try:
+                skeleton = template_adapter.load_template(t_id)
+            except MissingTemplate:
+                raise SanicException(f"No template {t_id}", status_code=404)
+            try:
+                return json(fit.predict(skeleton))
+            except (Busy, NotReady, NothingToLearn) as e:
+                raise SanicException(str(e), status_code=409)
 
     @api.route("/meshes")
     async def meshes(request):

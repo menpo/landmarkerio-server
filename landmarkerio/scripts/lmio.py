@@ -5,7 +5,7 @@ from typing import Optional
 
 from landmarkerio import TEMPLATE_DINAME
 from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
-from landmarkerio.fit import AutoFit, require_fit_dependencies
+from landmarkerio.fit import AutoFit, autofit_from_config, require_fit_dependencies
 from landmarkerio.landmark import (
     InplaceFileLmAdapter,
     LandmarkAdapter,
@@ -26,9 +26,7 @@ def launch_server(
     port: int = 5000,
     public: bool = False,
     glob: Optional[str] = None,
-    fit: bool = False,
-    fit_min_images: int = 8,
-    fit_from_all: bool = False,
+    fit: Optional[Path] = None,
 ) -> None:
     if cache_dir is None:
         cache_dir = Path(tempfile.mkdtemp())
@@ -48,15 +46,12 @@ def launch_server(
     lm_adapter: LandmarkAdapter = InplaceFileLmAdapter(asset_ids_to_path)
 
     auto_fit: Optional[AutoFit] = None
-    if fit:
+    if fit is not None:
         if mode != "image":
             raise SystemExit("--fit is for images")
         require_fit_dependencies()
-        auto_fit = AutoFit(
-            asset_ids_to_path,
-            min_images=fit_min_images,
-            from_saved=not fit_from_all,
-        )
+        # an empty path is "--fit" on its own: the defaults
+        auto_fit = autofit_from_config(asset_ids_to_path, fit if str(fit) else None)
         # learn from what is already there, then from every save
         auto_fit.notify_saved("")
         lm_adapter = ReviewedLmAdapter(lm_adapter, auto_fit.notify_saved)
@@ -144,21 +139,13 @@ def build_argparser() -> ArgumentParser:
     )
     parser.add_argument(
         "--fit",
-        action="store_true",
-        help="Learn a patch-based AAM from the landmarks you save, and offer to refine "
-        "the landmarks of an image with it (needs landmarkerio-server[fit]).",
-    )
-    parser.add_argument(
-        "--fit-min-images",
-        type=int,
-        default=8,
-        help="Reviewed images needed before there is a model. 8 by default.",
-    )
-    parser.add_argument(
-        "--fit-from-all",
-        action="store_true",
-        help="Learn from every image with complete landmarks, not only those saved "
-        "through the server (use for a folder of landmarks you trust).",
+        nargs="?",
+        const="",
+        type=Path,
+        metavar="CONFIG.yml",
+        help="Learn a model from the landmarks you save, and offer to refine the landmarks "
+        "of an image with it (needs landmarkerio-server[fit]). The optional YAML file "
+        "chooses the model, its settings and an initial state; see the README.",
     )
     return parser
 
@@ -183,8 +170,6 @@ def main(ns: Namespace) -> None:
         public=ns.public,
         glob=ns.glob,
         fit=ns.fit,
-        fit_min_images=ns.fit_min_images,
-        fit_from_all=ns.fit_from_all,
     )
 
 
