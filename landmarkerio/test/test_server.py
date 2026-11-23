@@ -83,6 +83,9 @@ def test_the_templates_that_ship_with_the_package_are_used(served):
     template = get(client, "templates/ibug68").json
     assert len(template["landmarks"]["points"]) == 68
     assert [g["label"] for g in template["labels"]][:2] == ["jaw", "left_eyebrow"]
+    # what the client needs to space the points of a curve evenly
+    assert template["labels"][0]["anchors"] == [0, 8, 16]
+    assert template["labels"][0]["spacing"]["1"] == pytest.approx(0.125, abs=0.002)
 
 
 def test_landmarks_start_as_the_template_and_round_trip(served):
