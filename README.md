@@ -21,27 +21,29 @@ so at all times you remain in control of the annotation experiement.
 
 ### Serving assets locally
 
-landmarkerio server can be used for annotation jobs on a local machine, **but
-it is not recommend**. Consider using Landmarker.app instead.
+For an annotation job on your own machine, run the server (`lmio`) from the command line and open the
+hosted client with the address of your server:
 
-If you do want to do local annoations with landmarkerio-server,
-just run the server (called `lmio`) from the command
-line. Your browser will automatically open to insecure.landmarker.io and 
-you can start landmarking. See [#17](https://github.com/menpo/landmarkerio-server/issues/17)
-for an indepth discussion on why this is on the 'insecure' subdomain.
+```
+>> lmio image ./path_to_images
+```
 
-You can get as clever as you want to enable remote serving of landmarks -
-SSH port tunnelling is an easy secure solution.
+then visit <https://menpo.github.io/landmarker.io/?server=http://localhost:5000>. A page served over
+https may only talk to an https server, or to one on your own machine, which is what `localhost` is;
+the server answers the "private network" preflight request that Chrome sends in that case.
+To use another port, give `-p`.
+
+For remote serving, SSH port tunnelling is an easy and secure solution.
 
 ### Installation
 
-landmarkerio server requires [Menpo](https://github.com/menpo/menpo)
-[Menpo3d](https://github.com/menpo/menpo) to run. As these have somewhat
-complex dependencies, by far the easiest way to install landmarkerio, is
-with conda. On OS X, Linux or Windows, just install conda and then
 ```
->> conda install -c menpo landmarkerio
+pip install landmarkerio-server            # serving images
+pip install "landmarkerio-server[mesh]"    # also meshes (adds menpo3d)
 ```
+
+It needs Python 3.10 or newer and [Menpo](https://github.com/menpo/menpo) 0.12 or newer, which is pure Python.
+The hosted client is [landmarker.io](https://github.com/menpo/landmarker.io).
 
 ### Important concepts
 
@@ -123,6 +125,6 @@ groups:
 A collection of template files can be placed in a templates folder.
 A path to a folder can be provided as the `-t` argument to
 `landmarkerio`. If no argument is provided, `lmio` looks for
-the folder `~/.lmiotempates`. This provides a convenient place to
+the folder `~/.lmiotemplates`, and failing that uses the `ibug68` template that ships with the package. This provides a convenient place to
 store frequently used templates.
 

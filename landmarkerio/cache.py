@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Callable, Dict, Iterable, Optional, Sequence, Tuple, cast
 
 import menpo
-import menpo3d
 import numpy as np
 from loguru import logger
+from PIL import Image as PILImage
 
 from landmarkerio import CacheFile
 from landmarkerio.mode import UnexpectedMode
@@ -55,8 +55,19 @@ def build_asset_mapping(
     return asset_mapping
 
 
+def _menpo3d():
+    """menpo3d is only needed to serve meshes: image servers do not require it."""
+    try:
+        import menpo3d
+    except ImportError as error:
+        raise ImportError(
+            "Serving meshes needs menpo3d: pip install 'landmarkerio-server[mesh]'"
+        ) from error
+    return menpo3d
+
+
 def mesh_paths(asset_dir: PathLike, glob_pattern: str) -> Sequence[Path]:
-    return menpo3d.io.mesh_paths(Path(asset_dir) / glob_pattern)
+    return _menpo3d().io.mesh_paths(Path(asset_dir) / glob_pattern)
 
 
 def image_paths(asset_dir: PathLike, glob_pattern: str) -> Sequence[Path]:
@@ -117,6 +128,9 @@ def _cache_image_for_id(
         )
 
     # 2. Save out the image
+    # menpo < 0.13 exports with the formats that Pillow had registered so far, which after
+    # loading a PNG is PNG alone (menpo #904): load them all
+    PILImage.init()
     if img_path.suffix == ".jpg":
         # Original was a jpg that was suitable, save it
         shutil.copyfile(img_path, texture_path)
@@ -139,7 +153,7 @@ def save_jpg_thumbnail_file(
 
 
 def cache_mesh(cache_dir: PathLike, path: PathLike, asset_id: str) -> None:
-    mesh = menpo3d.io.import_mesh(path)
+    mesh = _menpo3d().io.import_mesh(path)
     if isinstance(mesh, menpo.shape.mesh.TexturedTriMesh):
         _cache_image_for_id(cache_dir, asset_id, mesh.texture)
     _cache_mesh_for_id(cache_dir, asset_id, mesh)
@@ -174,8 +188,8 @@ def _export_raw_mesh(path: PathLike, m: menpo.shape.TriMesh) -> None:
 
 def ensure_cache_dir(cache_dir: PathLike) -> Path:
     cache_dir = Path(p.abspath(p.expanduser(cache_dir)))
-    if cache_dir.is_dir():
-        logger.warning("Warning the cache dir does not exist - creating...")
+    if not cache_dir.is_dir():
+        logger.warning("The cache dir does not exist - creating...")
         cache_dir.mkdir(parents=True, exist_ok=True)
     logger.debug("cache:     {}", cache_dir)
     return cache_dir
@@ -217,7 +231,7 @@ def build_cache(
 
     if ext is not None:
         ext_str = "." + ext
-        logger.debug("only assets of type {} will be " "loaded.", ext_str)
+        logger.debug("only assets of type {} will be loaded.", ext_str)
     else:
         ext_str = ""
 
@@ -239,7 +253,7 @@ def build_cache(
     cached = set(os.listdir(cache_dir))
     uncached = asset_ids - cached
 
-    logger.debug("{} assets need to be added to " "the cache", len(uncached))
+    logger.debug("{} assets need to be added to the cache", len(uncached))
     cache: CacheF = cast(CacheF, partial(cache_asset, cache_dir, cache_f))
     path_asset_id = [(asset_id_to_paths[a_id], a_id) for a_id in uncached]
 

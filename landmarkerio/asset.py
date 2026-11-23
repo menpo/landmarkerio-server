@@ -41,7 +41,7 @@ class ImageCacheAdapter(CacheAdapter, ImageAdapter):
         CacheAdapter.__init__(self, cache_dir)
         self._image_asset_ids = [
             a.parent.name
-            for a in self.cache_dir.glob(os.path.join("*", CacheFile.image))
+            for a in self.cache_dir.glob(os.path.join("*", CacheFile.texture))
             if a.parent.parent == self.cache_dir
         ]
 

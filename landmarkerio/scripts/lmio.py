@@ -1,13 +1,4 @@
-#!/usr/bin/env python
-import multiprocessing
-
-from sanic import Sanic
-
-Sanic.START_METHOD_SET = True
-
 import tempfile
-import webbrowser
-from functools import partial
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Optional
@@ -16,7 +7,6 @@ from landmarkerio import TEMPLATE_DINAME
 from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
 from landmarkerio.landmark import InplaceFileLmAdapter
 from landmarkerio.servers.serve import serve_from_cache
-from sanic.worker.loader import AppLoader
 
 
 def launch_server(
@@ -49,19 +39,20 @@ def launch_server(
     # build an inplace adapter to serve landmarks found in-situ next to assets
     lm_adapter = InplaceFileLmAdapter(asset_ids_to_path)
 
-    loader = AppLoader(
-        factory=partial(
-            serve_from_cache,
-            mode,
-            cache_dir,
-            lm_adapter,
-            template_dir=template_dir,
-            collection_dir=collection_dir,
-        )
+    app = serve_from_cache(
+        mode,
+        cache_dir,
+        lm_adapter,
+        template_dir=template_dir,
+        collection_dir=collection_dir,
     )
-    app = loader.load()
-    app.prepare(host="0.0.0.0" if public else "localhost", port=port, debug=dev)
-    Sanic.serve(primary=app, app_loader=loader)
+    # one process: this serves one annotator on their own machine (or a handful over a tunnel)
+    app.run(
+        host="0.0.0.0" if public else "localhost",
+        port=port,
+        debug=dev,
+        single_process=True,
+    )
 
 
 def build_argparser() -> ArgumentParser:
@@ -78,44 +69,44 @@ def build_argparser() -> ArgumentParser:
         "-r",
         "--recursive",
         action="store_true",
-        help="If provided the path is searched recursively for" " assets",
+        help="If provided the path is searched recursively for assets",
     )
     parser.add_argument(
         "-e",
         "--ext",
-        help="If provided only files with this extension " "will be imported.",
+        help="If provided only files with this extension will be imported.",
     )
     parser.add_argument(
         "-g",
         "--glob",
         help="A custom (recursive) glob used for finding assets under the path. If "
-             "provided --ext and --recursive flags are ignored",
+        "provided --ext and --recursive flags are ignored",
     )
     parser.add_argument(
         "-t",
         "--templates",
         type=Path,
         help="The directory containing the template files. "
-             "If None provided taken as "
-             "'~/{}'".format(TEMPLATE_DINAME),
+        "If None provided taken as "
+        "'~/{}'".format(TEMPLATE_DINAME),
     )
     parser.add_argument(
         "--cache",
         type=Path,
         help="The directory used to cache assets for serving. If None provided a "
-             "temporary directory is used. This cache is populated the first time "
-             "the server is run. Subsequent runs verify the cache but do not "
-             "have to rebuild it. Once you have finished annotating assets "
-             "delete this folder to reclaim disk space. Note that if this flag "
-             "is not provided, the cache will have to be rebuilt every time the "
-             "server is started.",
+        "temporary directory is used. This cache is populated the first time "
+        "the server is run. Subsequent runs verify the cache but do not "
+        "have to rebuild it. Once you have finished annotating assets "
+        "delete this folder to reclaim disk space. Note that if this flag "
+        "is not provided, the cache will have to be rebuilt every time the "
+        "server is started.",
     )
     parser.add_argument(
         "-c",
         "--collections",
         type=Path,
         help="The directory containing the collection files. "
-             "If None provided an 'all' collection will be used with all assets present.",
+        "If None provided an 'all' collection will be used with all assets present.",
     )
     parser.add_argument(
         "--dev",
@@ -153,5 +144,10 @@ def main(ns: Namespace) -> None:
     )
 
 
-if __name__ == "__main__":
+def cli() -> None:
+    """The console script."""
     main(build_argparser().parse_args())
+
+
+if __name__ == "__main__":
+    cli()

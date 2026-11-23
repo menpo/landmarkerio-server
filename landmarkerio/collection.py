@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Sequence
 
 from loguru import logger
+
 from landmarkerio import ALL_COLLECTION_ID, FileExt, dirs_in_dir
 from landmarkerio.types import PathLike
 
