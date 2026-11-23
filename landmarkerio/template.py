@@ -7,8 +7,10 @@ from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple
 import yaml
 from loguru import logger
 
-from landmarkerio import FileExt, TEMPLATE_DINAME
+from landmarkerio import TEMPLATE_DINAME, FileExt
 from landmarkerio.types import PathLike
+
+DEFAULT_TEMPLATE_DIR = Path(__file__).parent / "default_templates"
 
 
 class Group(NamedTuple):
@@ -143,13 +145,16 @@ class FileTemplateAdapter(TemplateAdapter):
     def __init__(self, n_dims: int, template_dir: Optional[PathLike] = None) -> None:
         self.n_dims = n_dims
         if template_dir is None:
-            # try the user folder
+            # try the user folder, then the templates that ship with the package
             user_templates = Path(p.expanduser(p.join("~", TEMPLATE_DINAME)))
             if user_templates.exists():
                 template_dir = user_templates
             else:
-                raise ValueError(
-                    f"No template dir provided and {user_templates} doesn't exist"
+                template_dir = DEFAULT_TEMPLATE_DIR
+                logger.info(
+                    "no template dir given and {} does not exist: using the "
+                    "templates that ship with landmarkerio",
+                    user_templates,
                 )
         self.template_dir = Path(p.abspath(p.expanduser(template_dir)))
         logger.debug("templates directory: {}", self.template_dir)

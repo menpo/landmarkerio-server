@@ -1,9 +1,9 @@
-#!/usr/bin/env python
-from pathlib import Path
+from argparse import ArgumentParser, Namespace
 from os import path as p
+from pathlib import Path
+
 import menpo
 from loguru import logger
-from argparse import ArgumentParser, Namespace
 
 
 def convert_all_under_path(path: Path) -> None:
@@ -30,5 +30,10 @@ def main(ns: Namespace) -> None:
     convert_all_under_path(Path(p.abspath(p.expanduser(ns.path))))
 
 
-if __name__ == "__main__":
+def cli() -> None:
+    """The console script."""
     main(build_argparser().parse_args())
+
+
+if __name__ == "__main__":
+    cli()

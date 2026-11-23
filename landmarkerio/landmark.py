@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Sequence, cast
 
 from loguru import logger
 
-from landmarkerio import FileExt, LM_DIRNAME
+from landmarkerio import LM_DIRNAME, FileExt
 from landmarkerio.types import PathLike
 
 
@@ -67,7 +67,7 @@ class SeparateDirFileLmAdapter(FileLmAdapter):
             # By default place the landmarks in the cwd
             lm_dir = Path(os.getcwd()) / LM_DIRNAME
         self.lm_dir = Path(p.abspath(p.expanduser(lm_dir)))
-        if self.lm_dir.exists():
+        if not self.lm_dir.exists():
             logger.warning("The landmark dir does not exist - creating...")
             self.lm_dir.mkdir(parents=True, exist_ok=True)
         logger.debug("landmarks: {}", self.lm_dir)

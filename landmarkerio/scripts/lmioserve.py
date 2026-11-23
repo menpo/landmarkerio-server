@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
@@ -82,8 +81,18 @@ def main(ns: Namespace) -> None:
     else:
         port = int(ns.port)
 
-    app.run(host="0.0.0.0" if ns.public else "localhost", port=port, debug=ns.dev)
+    app.run(
+        host="0.0.0.0" if ns.public else "localhost",
+        port=port,
+        debug=ns.dev,
+        single_process=True,
+    )
+
+
+def cli() -> None:
+    """The console script."""
+    main(build_argparser().parse_args())
 
 
 if __name__ == "__main__":
-    main(build_argparser().parse_args())
+    cli()

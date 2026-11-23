@@ -1,5 +1,6 @@
-#!/usr/bin/env python
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
+from typing import Callable
 
 from loguru import logger
 
@@ -8,7 +9,6 @@ from landmarkerio.cache import (
     filename_as_asset_id,
     filepath_as_asset_id_under_dir,
 )
-from argparse import ArgumentParser, Namespace
 
 
 def build_argparser() -> ArgumentParser:
@@ -28,12 +28,12 @@ def build_argparser() -> ArgumentParser:
         "-r",
         "--recursive",
         action="store_true",
-        help="If provided the path is searched recursively for" " assets",
+        help="If provided the path is searched recursively for assets",
     )
     parser.add_argument(
         "-e",
         "--ext",
-        help="If provided only files with this extension " "will be cached.",
+        help="If provided only files with this extension will be cached.",
     )
     parser.add_argument(
         "-g",
@@ -51,6 +51,7 @@ def build_argparser() -> ArgumentParser:
 
 
 def main(ns: Namespace) -> None:
+    identifier_f: Callable[..., str]
     if ns.filename:
         logger.info("Using filename as asset_id")
         identifier_f = filename_as_asset_id
@@ -69,5 +70,10 @@ def main(ns: Namespace) -> None:
     )
 
 
-if __name__ == "__main__":
+def cli() -> None:
+    """The console script."""
     main(build_argparser().parse_args())
+
+
+if __name__ == "__main__":
+    cli()

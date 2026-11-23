@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "landmarkerio-server"
+dynamic = ["version"]
+description = "Menpo-based server for landmarker.io"
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [{ name = "James Booth", email = "james.booth08@imperial.ac.uk" }]
+requires-python = ">=3.10"
+dependencies = [
+    "menpo>=0.12",
+    "sanic>=23.12",
+    "sanic-cors",
+    "loguru",
+    "joblib",
+    "PyYAML",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+
+[project.optional-dependencies]
+# serving meshes (image servers do not need it)
+mesh = ["menpo3d>=0.10"]
+
+[project.urls]
+Homepage = "https://menpo.github.io/landmarker.io/"
+Source = "https://github.com/menpo/landmarkerio-server"
+Client = "https://github.com/menpo/landmarker.io"
+
+[project.scripts]
+lmio = "landmarkerio.scripts.lmio:cli"
+lmioserve = "landmarkerio.scripts.lmioserve:cli"
+lmiocache = "landmarkerio.scripts.lmiocache:cli"
+lmioconvert = "landmarkerio.scripts.lmioconvert:cli"
+
+[dependency-groups]
+dev = ["pytest>=8", "sanic-testing", "ruff", "mypy", "types-PyYAML"]
+
+[tool.setuptools.packages.find]
+include = ["landmarkerio*"]
+
+[tool.setuptools.package-data]
+landmarkerio = ["default_templates/*"]
+
+[tool.setuptools_scm]
+version_file = "landmarkerio/_version.py"
+local_scheme = "no-local-version"
+
+[tool.pytest.ini_options]
+testpaths = ["landmarkerio"]
+
+[tool.ruff]
+line-length = 88
+extend-exclude = ["landmarkerio/_version.py", "landmarkerio/http_auth"]
+
+[tool.ruff.lint]
+select = ["E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["landmarkerio"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["landmarkerio._version", "landmarkerio.http_auth.*"]
+ignore_errors = true

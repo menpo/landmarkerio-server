@@ -13,11 +13,6 @@ class CacheFile(object):
 
 
 class Server(object):
-    allowed_origins = [
-        "https://www.landmarker.io",  # secure client
-        "http://localhost:4000",  # client development
-        "http://insecure.landmarker.io",
-    ]  # legacy client
     endpoint = "/api/v2/"
 
 
@@ -49,4 +44,13 @@ ALL_COLLECTION_ID = "all"
 
 dirs_in_dir = lambda path: sorted([p for p in path.iterdir() if p.is_dir()])
 
-from ._version import __version__
+try:
+    from ._version import __version__
+except ImportError:  # a source checkout that was never installed
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as _version
+
+    try:
+        __version__ = _version("landmarkerio-server")
+    except PackageNotFoundError:
+        __version__ = "unknown"

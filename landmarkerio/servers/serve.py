@@ -43,6 +43,12 @@ def serve_from_cache(
     app = Sanic(name="landmarkerio")
     CORS(app)
 
+    @app.on_response
+    async def allow_private_network(request, response):
+        # a page on the internet (the hosted landmarker.io) talking to this server on the
+        # visitor's own machine: Chrome asks for this in its preflight request
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+
     n_dims = DIMS[mode]
     template_adapter = CachedFileTemplateAdapter(n_dims, template_dir=template_dir)
 
