@@ -146,3 +146,27 @@ class InplaceFileLmAdapter(FileLmAdapter):
     def _lm_path_for_asset_id(self, asset_id: str) -> Path:
         asset_path = Path(self.ids_to_paths[asset_id])
         return asset_path.with_suffix(FileExt.lm)
+
+
+class ReviewedLmAdapter(LandmarkAdapter):
+    r"""
+    Wraps an adapter so that what is saved through the server is marked ``"reviewed": true``
+    and a hook is told about it (the fit service learns from it).
+    """
+
+    def __init__(self, inner: LandmarkAdapter, on_saved: Any) -> None:
+        self.inner = inner
+        self.on_saved = on_saved
+
+    def asset_id_to_lm_id(self) -> Dict[str, Sequence[str]]:
+        return self.inner.asset_id_to_lm_id()
+
+    def landmark_ids(self, asset_id: str) -> Sequence[str]:
+        return self.inner.landmark_ids(asset_id)
+
+    def load_landmark(self, asset_id: str, lm_id: str) -> Dict[str, Any]:
+        return self.inner.load_landmark(asset_id, lm_id)
+
+    def save_landmark(self, asset_id: str, lm_id: str, lm_json: Dict[str, Any]) -> None:
+        self.inner.save_landmark(asset_id, lm_id, {**lm_json, "reviewed": True})
+        self.on_saved(asset_id)
