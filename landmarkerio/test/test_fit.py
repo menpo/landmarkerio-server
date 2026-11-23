@@ -534,3 +534,33 @@ def test_api_without_a_fit_service_has_no_fit_route(folder, tmp_path, monkeypatc
     Sanic.test_mode = True
     _, response = app.test_client.get("/api/v2/fit")
     assert response.status == 404
+
+
+def test_bare_fit_flag_means_the_default_config(monkeypatch, tmp_path):
+    # "--fit" on its own parses to Path(""), which is "."; it is not a config to read
+    from landmarkerio.scripts import lmio
+
+    Image.new("RGB", (4, 4)).save(tmp_path / "a.png")
+    ns = lmio.build_argparser().parse_args(["image", str(tmp_path), "--fit"])
+    assert ns.fit == Path()
+    given = []
+
+    class Stop(Exception):
+        pass
+
+    def fake(ids, config):
+        given.append(config)
+        raise Stop
+
+    monkeypatch.setattr(lmio, "require_fit_dependencies", lambda: None)
+    monkeypatch.setattr(lmio, "autofit_from_config", fake)
+    with pytest.raises(Stop):
+        lmio.main(ns)
+    assert given == [None]
+
+    ns = lmio.build_argparser().parse_args(
+        ["image", str(tmp_path), "--fit", "fit.yml"]
+    )
+    with pytest.raises(Stop):
+        lmio.main(ns)
+    assert given == [None, Path("fit.yml")]

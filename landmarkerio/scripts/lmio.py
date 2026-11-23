@@ -50,8 +50,10 @@ def launch_server(
         if mode != "image":
             raise SystemExit("--fit is for images")
         require_fit_dependencies()
-        # an empty path is "--fit" on its own: the defaults
-        auto_fit = autofit_from_config(asset_ids_to_path, fit if str(fit) else None)
+        # a bare "--fit" is Path(""), which is "." (a directory is never a config): defaults
+        auto_fit = autofit_from_config(
+            asset_ids_to_path, None if fit == Path() else fit
+        )
         # learn from what is already there, then from every save
         auto_fit.notify_saved("")
         lm_adapter = ReviewedLmAdapter(lm_adapter, auto_fit.notify_saved)
