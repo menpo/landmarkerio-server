@@ -94,3 +94,36 @@ def test_the_shipped_ibug68_template_says_what_to_keep_and_how_to_space_the_rest
         a for a in nose["anchors"] if a in (3, 4)
     ]  # 30 and 31, either side of the corner
     assert {0, 3, 6, 9} <= set(mouth["anchors"])  # 48, 51, 54, 57
+
+
+def test_connectivity_as_a_single_string_and_cycle(tmp_path):
+    # 'connectivity: 0:3' (not a list) and 'connectivity: cycle' are what the documentation says
+    text = (
+        "groups:\n"
+        "  - label: chain\n    points: 4\n    connectivity: 0:3\n"
+        "  - label: ring\n    points: 4\n    connectivity: cycle\n"
+        "  - label: pair\n    points: 2\n    connectivity: 0 1\n"
+    )
+    edges = load(tmp_path, text)["landmarks"]["connectivity"]
+    assert edges == [
+        [0, 1], [1, 2], [2, 3],  # the chain
+        [4, 5], [5, 6], [6, 7], [7, 4],  # the ring, closed
+        [8, 9],
+    ]  # fmt: skip
+
+
+def test_templates_may_end_in_yaml(tmp_path):
+    from landmarkerio.template import FileTemplateAdapter, MissingTemplate
+
+    body = "groups:\n  - label: a\n    points: 2\n"
+    (tmp_path / "heart.yaml").write_text(body)
+    (tmp_path / "face.yml").write_text(body)
+    (tmp_path / "both.yaml").write_text(body)
+    (tmp_path / "both.yml").write_text(body.replace("points: 2", "points: 3"))
+    (tmp_path / "notes.txt").write_text("not a template")
+    adapter = FileTemplateAdapter(2, template_dir=tmp_path)
+    assert sorted(adapter.template_ids()) == ["both", "face", "heart"]
+    assert len(adapter.load_template("heart")["landmarks"]["points"]) == 2
+    assert len(adapter.load_template("both")["landmarks"]["points"]) == 3  # .yml wins
+    with pytest.raises(MissingTemplate):
+        adapter.load_template("notes")

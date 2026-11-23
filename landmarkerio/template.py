@@ -101,10 +101,16 @@ def load_yaml_template(filepath: PathLike, n_dims: int):
         n = group["points"]  # Should raise KeyError by design if missing
         connectivity = group.get("connectivity", [])
 
+        if isinstance(connectivity, str):
+            # a string is a Sequence too, so it has to be dealt with first
+            if connectivity.strip() == "cycle":
+                connectivity = [f"0:{n - 1}", f"{n - 1} 0"]
+            else:
+                connectivity = [
+                    connectivity
+                ]  # 'connectivity: 0:3' for 'connectivity: [0:3]'
         if isinstance(connectivity, Sequence):
             indices = parse_connectivity(connectivity, n)
-        elif connectivity == "cycle":
-            indices = parse_connectivity(["0:{n - 1}", "{n - 1} 0"], n)
         else:
             indices = []  # Couldn't parse connectivity, safe default
 
@@ -220,11 +226,18 @@ class FileTemplateAdapter(TemplateAdapter):
         return [t.stem for t in self.template_paths()]
 
     def template_paths(self) -> Sequence[Path]:
-        return list(self.template_dir.glob("*" + FileExt.template))
+        # .yml, or .yaml; the .yml wins if both exist
+        paths = {}
+        for ext in (".yaml", FileExt.template):
+            for path in self.template_dir.glob("*" + ext):
+                paths[path.stem] = path
+        return sorted(paths.values())
 
     def load_template(self, lm_id: str):
-        fp = self.template_dir / (lm_id + FileExt.template)
-        return load_template(fp, self.n_dims)
+        for path in self.template_paths():
+            if path.stem == lm_id:
+                return load_template(path, self.n_dims)
+        raise MissingTemplate(lm_id)
 
 
 class CachedFileTemplateAdapter(FileTemplateAdapter):
