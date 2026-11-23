@@ -82,7 +82,7 @@ You get help on the tool just as you would expect
 The server keeps a model and uses it to refine landmarks (and to suggest them for an image that has none). Which model, and where it starts, are in an optional YAML file, not on the command line:
 
 ```yaml
-model: patch-aam          # patch-aam (default), holistic-aam, or your own: package.module:Class
+model: patch-aam          # a short name (table below) or any class: package.module:Class
 options:                  # the model's constructor arguments
   patch_sizes: [15, 23]
   initial_scale: 0.6      # without a drawn box: the mean shape fills this much of the image
@@ -93,16 +93,25 @@ from_saved: true          # learn only from images saved through landmarker.io (
 min_images: 8             # reviewed images before a model is built from scratch (no initial state)
 ```
 
+`model:` is either a **short name** or the path of a class, `package.module:Class`. The short names are only aliases of classes in `landmarkerio.fit_models`, so these two lines are the same:
+
+| short name | the same as | what it is |
+| --- | --- | --- |
+| `patch-aam` (the default) | `landmarkerio.fit_models:PatchAAM` | menpofit `PatchAAM`, igo features, two scales; can build and increment |
+| `holistic-aam` | `landmarkerio.fit_models:HolisticAAM` | menpofit `HolisticAAM`; can build and increment |
+
+Any other name is an error that lists these. Your own model is a subclass of `landmarkerio.fit.FitModel`, given as a path (`mypackage.models:MyFitter`); it is never a short name.
+
 What the server offers follows from what the model can do (`landmarkerio.fit.FitModel`):
 
 | the model has | you get |
 | --- | --- |
 | `fitter` and `fit` (required) | fitting from the current landmarks; a model trained elsewhere works as it is |
-| `increment` | learning from each saved image, on top of the initial state if there is one |
+| `increment` | learning from each saved image, or from one image on request, on top of the initial state if there is one |
 | `build` | training from scratch on all annotations (so you can begin with none) |
 | `initialize` | fitting an image that has no landmarks: from a box you draw, or the model's own suggestion |
 
-A fit starts from, in this order: a **box you drew**, else the **current landmarks** if all are placed, else the model's own start. It learns and saves nothing. Training from all annotations and fitting every unlabelled image are jobs (`POST /api/v2/fit/train`, `POST /api/v2/fit/predict/<template>`; progress is in `GET /api/v2/fit`), and the files that `predict` writes are marked `"reviewed": false`, so they only count as annotations once you save them.
+A fit starts from, in this order: a **box you drew**, else the **current landmarks** if all are placed, else the model's own start. It learns and saves nothing. **The model learns only from saved landmarks**, the ones in the file, never what is on the screen: saving through landmarker.io is what marks an image as reviewed. With `learn_on_save` each save is learnt from at once; `POST /api/v2/fit/learn_on_save` (`{"enabled": false}`) switches that off and `POST /api/v2/fit/learn/<asset>` then adds one saved image when you ask (a 409 says if it is not saved, or the model cannot increment). Saving an image again that was learnt from rebuilds from the initial state, since an incremental model cannot forget. Training from all annotations and fitting every unlabelled image are jobs (`POST /api/v2/fit/train`, `POST /api/v2/fit/predict/<template>`; progress is in `GET /api/v2/fit`), and the files that `predict` writes are marked `"reviewed": false`, so they only count as annotations once you save them.
 
 ### Templates
 

@@ -163,6 +163,25 @@ def build_v2_blueprint(
             except (Busy, NothingToLearn) as e:
                 raise SanicException(str(e), status_code=409)
 
+        @api.route("/fit/learn/<asset_id>", methods=("POST",))
+        async def fit_learn(request, asset_id):
+            r"""Add one saved image to the model, as a background job (see GET /fit)."""
+            if asset_id not in fit.ids_to_paths:
+                raise SanicException(f"Unable to find {asset_id}", status_code=404)
+            try:
+                return json(fit.learn(asset_id))
+            except (Busy, NothingToLearn) as e:
+                raise SanicException(str(e), status_code=409)
+
+        @api.route("/fit/learn_on_save", methods=("POST",))
+        async def fit_learn_on_save(request):
+            r"""``{"enabled": true/false}``: learn from each image as it is saved, or not."""
+            enabled = (request.json or {}).get("enabled")
+            if not isinstance(enabled, bool):
+                raise SanicException('expected {"enabled": true or false}', status_code=400)
+            fit.set_learn_on_save(enabled)
+            return json(fit.status())
+
         @api.route("/fit/predict/<t_id>", methods=("POST",))
         async def fit_predict(request, t_id):
             r"""Fit every image without landmarks and write them as not reviewed, in the layout
