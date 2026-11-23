@@ -178,7 +178,9 @@ def build_v2_blueprint(
             r"""``{"enabled": true/false}``: learn from each image as it is saved, or not."""
             enabled = (request.json or {}).get("enabled")
             if not isinstance(enabled, bool):
-                raise SanicException('expected {"enabled": true or false}', status_code=400)
+                raise SanicException(
+                    'expected {"enabled": true or false}', status_code=400
+                )
             fit.set_learn_on_save(enabled)
             return json(fit.status())
 

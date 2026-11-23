@@ -266,7 +266,9 @@ def test_learn_adds_one_saved_image_and_only_that_one(folder):
 
 def test_learn_only_from_a_saved_image(folder):
     reviewed(folder, 3)
-    write(folder, "unsaved", [[1.0, 2.0]], reviewed=None)  # has landmarks, not saved here
+    write(
+        folder, "unsaved", [[1.0, 2.0]], reviewed=None
+    )  # has landmarks, not saved here
     write(folder, "partial", [[1.0, None]])
     write(folder, "none", None)
     fit = make(folder, min_images=3, learn_on_save=False)
@@ -637,9 +639,7 @@ def test_bare_fit_flag_means_the_default_config(monkeypatch, tmp_path):
         lmio.main(ns)
     assert given == [None]
 
-    ns = lmio.build_argparser().parse_args(
-        ["image", str(tmp_path), "--fit", "fit.yml"]
-    )
+    ns = lmio.build_argparser().parse_args(["image", str(tmp_path), "--fit", "fit.yml"])
     with pytest.raises(Stop):
         lmio.main(ns)
     assert given == [None, Path("fit.yml")]
