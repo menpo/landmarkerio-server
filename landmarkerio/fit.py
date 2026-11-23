@@ -232,17 +232,16 @@ class AutoFit:
             return None
         return np.array(points, dtype=float)
 
+    def _may_learn_from(self, asset_id: str) -> bool:
+        """Complete landmarks, and saved through the server if ``from_saved``."""
+        data = self._read(asset_id)
+        if self._complete_points(data) is None:
+            return False
+        return not self.from_saved or bool((data or {}).get("reviewed"))
+
     def annotated_ids(self) -> List[str]:
         """The assets that the model learns from."""
-        ids = []
-        for asset_id in sorted(self.ids_to_paths):
-            data = self._read(asset_id)
-            if self._complete_points(data) is None:
-                continue
-            if self.from_saved and not (data or {}).get("reviewed"):
-                continue
-            ids.append(asset_id)
-        return ids
+        return [i for i in sorted(self.ids_to_paths) if self._may_learn_from(i)]
 
     def unlabelled_ids(self) -> List[str]:
         """The assets with no complete landmarks."""
@@ -367,6 +366,63 @@ class AutoFit:
         else:
             self._executor.submit(work)
         return job
+
+    def set_learn_on_save(self, enabled: bool) -> None:
+        r"""Switch learning from each saved image on or off (only a model that can ``increment``)."""
+        self.learn_on_save = bool(enabled) and self.model.can_increment
+
+    def learn(self, asset_id: str) -> Dict[str, Any]:
+        r"""
+        Add one image to the model, as a job. Only a **saved** image can be learnt from: the
+        landmarks that are in its file, not the ones on the annotator's screen.
+
+        If the image was learnt from before and has been saved again since, the model starts
+        over from its initial state with the images it had learnt (an incremental model cannot
+        forget the old landmarks).
+
+        Raises
+        ------
+        NothingToLearn
+            The model cannot ``increment``, the image is not saved (as complete, reviewed
+            landmarks), or there is no state to add it to yet (use :meth:`train`).
+        """
+        if not self.model.can_increment:
+            raise NothingToLearn(
+                f"{type(self.model).__name__} cannot learn one image at a time "
+                "(it has no increment())"
+            )
+        if not self._may_learn_from(asset_id):
+            raise NothingToLearn(
+                "the model learns only from saved landmarks: place every landmark and "
+                f"save {asset_id} first"
+                if self.from_saved
+                else f"{asset_id} has no complete landmarks to learn from"
+            )
+        if self._fitter is None:
+            raise NothingToLearn(self._not_ready_message())
+
+        def run(tick: Any) -> str:
+            with self._work:
+                mtime = self._ljson_path(asset_id).stat().st_mtime
+                with self._lock:
+                    learnt, state = dict(self._learnt), self._state
+                if learnt.get(asset_id, -1.0) >= mtime:
+                    tick()
+                    return f"already learnt from {asset_id}"
+                if asset_id in learnt:
+                    # saved again: the old landmarks are in the state, start over without them
+                    ids = [i for i in learnt if self._ljson_path(i).exists()]
+                    ids = sorted(set(ids) | {asset_id})
+                    state = self._learn_from_start(ids)
+                    learnt = {i: self._ljson_path(i).stat().st_mtime for i in ids}
+                else:
+                    state = self.model.increment(state, self._load([asset_id]))
+                    learnt[asset_id] = mtime
+                self._set_state(state, learnt)
+                tick()
+            return f"learnt from {asset_id}"
+
+        return self._start_job("learn", run, 1)
 
     def train(self) -> Dict[str, Any]:
         r"""
@@ -555,7 +611,7 @@ def autofit_from_config(
 
     .. code-block:: yaml
 
-        model: patch-aam             # a name of landmarkerio.fit_models, or package.module:Class
+        model: patch-aam             # a short name (patch-aam, holistic-aam) or package.module:Class
         options:                     # given to the model's constructor
           patch_sizes: [15, 23]
           diagonal: 150
@@ -612,7 +668,11 @@ def _box(box: Sequence[Sequence[float]]) -> np.ndarray:
 
 
 def load_model_class(spec: str) -> type:
-    r"""``package.module:Class`` (or a name from :mod:`landmarkerio.fit_models`)."""
+    r"""
+    The model class for the ``model:`` setting of the config: ``package.module:Class``, or one
+    of the short names in :data:`landmarkerio.fit_models.MODELS`, each of which stands for a
+    class of that module (``patch-aam`` is ``landmarkerio.fit_models:PatchAAM``).
+    """
     from importlib import import_module
 
     from landmarkerio import fit_models

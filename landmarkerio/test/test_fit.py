@@ -248,6 +248,85 @@ def test_train_learns_from_all_the_annotations_as_a_job(folder):
     assert fit.status()["ready"] and fit.status()["trained_on"] == 4
 
 
+def test_learn_adds_one_saved_image_and_only_that_one(folder):
+    reviewed(folder, 3)
+    fit = make(folder, min_images=3, learn_on_save=False)
+    fit.train()
+    write(folder, "extra", [[1.0, 2.0]])
+    fit.ids_to_paths["extra.png"] = folder / "extra.png"
+    write(folder, "other", [[1.0, 2.0]])
+    fit.ids_to_paths["other.png"] = folder / "other.png"
+    job = fit.learn("extra.png")
+    assert job["state"] == "done" and job["message"] == "learnt from extra.png"
+    assert fit.model.log[-1] == ("add", ["extra.png"])  # not other.png
+    assert fit.status()["trained_on"] == 4
+    assert fit.learn("extra.png")["message"] == "already learnt from extra.png"
+    assert len(fit.model.log) == 2  # and nothing was done for it
+
+
+def test_learn_only_from_a_saved_image(folder):
+    reviewed(folder, 3)
+    write(folder, "unsaved", [[1.0, 2.0]], reviewed=None)  # has landmarks, not saved here
+    write(folder, "partial", [[1.0, None]])
+    write(folder, "none", None)
+    fit = make(folder, min_images=3, learn_on_save=False)
+    fit.train()
+    for name in ("unsaved", "partial", "none"):
+        fit.ids_to_paths[f"{name}.png"] = folder / f"{name}.png"
+        with pytest.raises(NothingToLearn, match="learns only from saved landmarks"):
+            fit.learn(f"{name}.png")
+    assert fit.status()["trained_on"] == 3
+    # unless it was asked to learn from every file
+    fit.from_saved = False
+    assert fit.learn("unsaved.png")["state"] == "done"
+    with pytest.raises(NothingToLearn, match="no complete landmarks"):
+        fit.learn("partial.png")
+
+
+def test_learn_a_resaved_image_starts_over_without_its_old_landmarks(folder):
+    reviewed(folder, 3)
+    fit = make(folder, min_images=3, learn_on_save=False)
+    fit.train()
+    time.sleep(0.01)
+    write(folder, "a1", [[5.0, 6.0]])  # saved again
+    assert fit.learn("a1.png")["state"] == "done"
+    assert fit.model.log[-1] == ("build", ["a0.png", "a1.png", "a2.png"])
+    assert fit.status()["trained_on"] == 3
+
+
+def test_learn_needs_a_model_that_increments_and_a_state_to_add_to(folder):
+    reviewed(folder, 3)
+    fit = make(folder, Minimal(), learn_on_save=False)
+    with pytest.raises(NothingToLearn, match="cannot learn one image at a time"):
+        fit.learn("a0.png")
+    fit = make(folder, min_images=100, learn_on_save=False)  # no state yet
+    with pytest.raises(NothingToLearn, match="needs 100 reviewed images"):
+        fit.learn("a0.png")
+
+
+def test_learn_on_save_can_be_switched(folder):
+    fit = make(folder)
+    assert fit.learn_on_save
+    fit.set_learn_on_save(False)
+    assert fit.status()["learn_on_save"] is False
+    fit.set_learn_on_save(True)
+    assert fit.status()["learn_on_save"] is True
+    only = make(folder, Minimal())
+    only.set_learn_on_save(True)
+    assert only.learn_on_save is False  # nothing to learn with
+
+
+def test_short_names_are_the_classes_of_fit_models():
+    from landmarkerio import fit_models
+    from landmarkerio.fit import load_model_class
+
+    for name, cls in fit_models.MODELS.items():
+        assert load_model_class(name) is cls
+        assert load_model_class(f"landmarkerio.fit_models:{cls.__name__}") is cls
+    with pytest.raises(ValueError, match="patch-aam"):
+        load_model_class("nonsense")
+
+
 def test_train_without_annotations_is_refused(tmp_path):
     write(tmp_path, "a", [[1.0, 2.0]], reviewed=None)
     with pytest.raises(NothingToLearn, match="no annotations"):
@@ -564,3 +643,23 @@ def test_bare_fit_flag_means_the_default_config(monkeypatch, tmp_path):
     with pytest.raises(Stop):
         lmio.main(ns)
     assert given == [None, Path("fit.yml")]
+
+
+def test_api_learn_one_saved_image_and_the_learn_on_save_switch(api):
+    client, fit = api
+    fit.learn_on_save = False
+    client.post("/api/v2/fit/train")
+    _, response = client.post("/api/v2/fit/learn/new.png")
+    assert response.status == 409 and "saved" in response.json["message"]
+    payload = {**BODY, "landmarks": {**BODY["landmarks"], "points": [[7.0, 8.0]]}}
+    client.put("/api/v2/landmarks/new.png/inplace", json=payload)  # saved: reviewed
+    assert fit.status()["trained_on"] == 3  # the switch is off, so it did not learn
+    _, response = client.post("/api/v2/fit/learn/new.png")
+    assert response.status == 200 and response.json["kind"] == "learn"
+    assert fit.status()["trained_on"] == 4
+    _, response = client.post("/api/v2/fit/learn/nope.png")
+    assert response.status == 404
+    _, response = client.post("/api/v2/fit/learn_on_save", json={"enabled": True})
+    assert response.status == 200 and response.json["learn_on_save"] is True
+    _, response = client.post("/api/v2/fit/learn_on_save", json={"enabled": "yes"})
+    assert response.status == 400
