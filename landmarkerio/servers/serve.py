@@ -9,6 +9,7 @@ from landmarkerio.collection import (
     CollectionAdapter,
     FileCollectionAdapter,
 )
+from landmarkerio.fit import AutoFit
 from landmarkerio.http_auth.sanic_httpauth import HTTPBasicAuth
 from landmarkerio.landmark import LandmarkAdapter
 from landmarkerio.servers.api.v2 import build_v2_blueprint
@@ -39,6 +40,7 @@ def serve_from_cache(
     collection_dir: Optional[PathLike] = None,
     username: Optional[str] = None,
     password: Optional[str] = None,
+    fit: Optional[AutoFit] = None,
 ):
     app = Sanic(name="landmarkerio")
     CORS(app)
@@ -68,6 +70,7 @@ def serve_from_cache(
         image_adapter,
         mesh_adapter,
         landmark_adapter,
+        fit=fit,
     )
     app.blueprint(v2_api)
 

@@ -5,7 +5,12 @@ from typing import Optional
 
 from landmarkerio import TEMPLATE_DINAME
 from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
-from landmarkerio.landmark import InplaceFileLmAdapter
+from landmarkerio.fit import AutoFit, require_fit_dependencies
+from landmarkerio.landmark import (
+    InplaceFileLmAdapter,
+    LandmarkAdapter,
+    ReviewedLmAdapter,
+)
 from landmarkerio.servers.serve import serve_from_cache
 
 
@@ -21,6 +26,9 @@ def launch_server(
     port: int = 5000,
     public: bool = False,
     glob: Optional[str] = None,
+    fit: bool = False,
+    fit_min_images: int = 8,
+    fit_from_all: bool = False,
 ) -> None:
     if cache_dir is None:
         cache_dir = Path(tempfile.mkdtemp())
@@ -37,7 +45,21 @@ def launch_server(
     )
 
     # build an inplace adapter to serve landmarks found in-situ next to assets
-    lm_adapter = InplaceFileLmAdapter(asset_ids_to_path)
+    lm_adapter: LandmarkAdapter = InplaceFileLmAdapter(asset_ids_to_path)
+
+    auto_fit: Optional[AutoFit] = None
+    if fit:
+        if mode != "image":
+            raise SystemExit("--fit is for images")
+        require_fit_dependencies()
+        auto_fit = AutoFit(
+            asset_ids_to_path,
+            min_images=fit_min_images,
+            from_saved=not fit_from_all,
+        )
+        # learn from what is already there, then from every save
+        auto_fit.notify_saved("")
+        lm_adapter = ReviewedLmAdapter(lm_adapter, auto_fit.notify_saved)
 
     app = serve_from_cache(
         mode,
@@ -45,6 +67,7 @@ def launch_server(
         lm_adapter,
         template_dir=template_dir,
         collection_dir=collection_dir,
+        fit=auto_fit,
     )
     # one process: this serves one annotator on their own machine (or a handful over a tunnel)
     app.run(
@@ -119,6 +142,24 @@ def build_argparser() -> ArgumentParser:
     parser.add_argument(
         "-p", "--port", help="The port to host the server on. 5000 by default"
     )
+    parser.add_argument(
+        "--fit",
+        action="store_true",
+        help="Learn a patch-based AAM from the landmarks you save, and offer to refine "
+        "the landmarks of an image with it (needs landmarkerio-server[fit]).",
+    )
+    parser.add_argument(
+        "--fit-min-images",
+        type=int,
+        default=8,
+        help="Reviewed images needed before there is a model. 8 by default.",
+    )
+    parser.add_argument(
+        "--fit-from-all",
+        action="store_true",
+        help="Learn from every image with complete landmarks, not only those saved "
+        "through the server (use for a folder of landmarks you trust).",
+    )
     return parser
 
 
@@ -141,6 +182,9 @@ def main(ns: Namespace) -> None:
         port=port,
         public=ns.public,
         glob=ns.glob,
+        fit=ns.fit,
+        fit_min_images=ns.fit_min_images,
+        fit_from_all=ns.fit_from_all,
     )
 
 

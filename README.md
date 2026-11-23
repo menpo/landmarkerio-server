@@ -72,6 +72,15 @@ You get help on the tool just as you would expect
 >> lmio --help
 ```
 
+#### Auto-fit: a model that learns from your annotations
+
+```
+>> pip install "landmarkerio-server[fit]"
+>> lmio image ./path_to_images --fit
+```
+
+The server builds a patch-based Active Appearance Model (menpofit) from the images whose landmarks you have *saved* through landmarker.io (images that already come with landmarks do not count, unless you add `--fit-from-all`), and adds each newly saved image to it in the background. Once it has learnt from `--fit-min-images` of them (8 by default), landmarker.io shows an **Auto-fit** button: it refines the landmarks that are on the image, so put them roughly in place first (**Copy Previous** will do) and let the model finish the job. It is undoable, and nothing is saved until you save.
+
 ### Templates
 
 #### Syntax
@@ -119,6 +128,21 @@ groups:
   - label: chin
     points: 1
 ```
+
+#### Anchors and spacing
+
+For the **Space evenly** of landmarker.io (it moves the points of a curve to equal steps along it, which is what you want after adjusting some of them) a group can say which points stay where they are and where the others go:
+
+```yaml
+  - label: jaw
+    points: 17
+    connectivity: ['0:16']
+    anchors: [0, 8, 16]                  # these do not move (indices of the group)
+    spacing: {1: 0.125, 2: 0.251, ...}   # optional: for other points, the fraction of the way
+                                         # between the anchors around them (equal steps without)
+```
+
+Without `anchors` the ends of every chain and the first point of every loop stay. The `ibug68` template that ships with the package has both, with the mean spacing of the 300-W annotators.
 
 #### Storing templates
 

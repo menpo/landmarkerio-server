@@ -1,3 +1,7 @@
+import asyncio
+import copy
+from typing import Optional
+
 from loguru import logger
 from sanic import Blueprint
 from sanic.exceptions import SanicException
@@ -5,6 +9,7 @@ from sanic.response import json
 
 from landmarkerio.asset import ImageAdapter, MeshAdapter
 from landmarkerio.collection import CollectionAdapter, MissingCollection
+from landmarkerio.fit import AutoFit, NothingToRefine, NotReady
 from landmarkerio.landmark import LandmarkAdapter
 from landmarkerio.response import serve_gzip_binary_file, serve_image_file
 from landmarkerio.template import MissingTemplate, TemplateAdapter
@@ -17,6 +22,7 @@ def build_v2_blueprint(
     image_adapter: ImageAdapter,
     mesh_adapter: MeshAdapter,
     landmark_adapter: LandmarkAdapter,
+    fit: Optional[AutoFit] = None,
 ) -> Blueprint:
     api = Blueprint("v2", url_prefix="/api/v2")
 
@@ -103,6 +109,31 @@ def build_v2_blueprint(
             raise SanicException(
                 status_code=409, message=f"{asset_id}:{lm_id} unable to save"
             )
+
+    if fit is not None:
+
+        @api.route("/fit")
+        async def fit_status(request):
+            return json(fit.status())
+
+        @api.route("/fit/<asset_id>/<lm_id>", methods=("POST",))
+        async def fit_asset(request, asset_id, lm_id):
+            r"""The landmarks that are on the image (the body, as the client has them, saved or
+            not), refined by the model that learnt from the saved ones. Nothing is saved."""
+            if asset_id not in fit.ids_to_paths:
+                raise SanicException(f"Unable to find {asset_id}", status_code=404)
+            try:
+                points = await asyncio.get_running_loop().run_in_executor(
+                    None,
+                    fit.fit,
+                    asset_id,
+                    (request.json or {}).get("landmarks", {}).get("points"),
+                )
+            except (NotReady, NothingToRefine) as e:
+                raise SanicException(str(e), status_code=409)
+            data = copy.deepcopy(request.json)
+            data["landmarks"]["points"] = points.tolist()
+            return json(data)
 
     @api.route("/meshes")
     async def meshes(request):

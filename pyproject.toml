@@ -30,6 +30,7 @@ classifiers = [
 [project.optional-dependencies]
 # serving meshes (image servers do not need it)
 mesh = ["menpo3d>=0.10"]
+fit = ["menpofit>=0.6"]
 
 [project.urls]
 Homepage = "https://menpo.github.io/landmarker.io/"
