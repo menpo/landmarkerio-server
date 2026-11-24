@@ -579,6 +579,19 @@ def test_a_bad_config_says_what_is_wrong(folder, text, message):
         autofit_from_config({}, folder / "fit.yml")
 
 
+def test_aam_component_limits_are_a_number_or_one_per_scale():
+    pytest.importorskip("menpofit")
+    from landmarkerio.fit_models import PatchAAM
+
+    same = PatchAAM(max_shape_components=20, max_appearance_components="50")
+    assert same.max_shape_components == 20 and same.max_appearance_components == 50
+    per_scale = PatchAAM(
+        max_shape_components=[15, 25.0], max_appearance_components=(75, 150)
+    )
+    assert per_scale.max_shape_components == [15, 25]
+    assert per_scale.max_appearance_components == [75, 150]
+
+
 def test_no_config_is_the_default_model():
     pytest.importorskip("menpofit")
     from landmarkerio.fit_models import PatchAAM
