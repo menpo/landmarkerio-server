@@ -11,6 +11,13 @@ import numpy as np
 from landmarkerio.fit import LJSON_GROUP, FitModel
 
 
+def _per_scale(value: Any) -> Any:
+    r"""A number for every scale, or a list with one for each scale (coarse to fine)."""
+    if isinstance(value, (list, tuple)):
+        return [int(v) for v in value]
+    return int(value)
+
+
 class _AAMModel(FitModel):
     r"""Shared by the AAMs: grow a copy, fit with Lucas-Kanade."""
 
@@ -18,16 +25,16 @@ class _AAMModel(FitModel):
         self,
         diagonal: float = 150,
         scales: Sequence[float] = (0.5, 1.0),
-        max_shape_components: int = 20,
-        max_appearance_components: int = 100,
+        max_shape_components: Any = 20,
+        max_appearance_components: Any = 100,
         max_iters: Sequence[int] = (15, 10),
         min_images: int = 8,
         initial_scale: float = 0.6,
     ) -> None:
         self.diagonal = float(diagonal)
         self.scales = tuple(scales)
-        self.max_shape_components = int(max_shape_components)
-        self.max_appearance_components = int(max_appearance_components)
+        self.max_shape_components = _per_scale(max_shape_components)
+        self.max_appearance_components = _per_scale(max_appearance_components)
         self.max_iters = list(max_iters)
         self.min_images = int(min_images)
         self.initial_scale = float(initial_scale)
