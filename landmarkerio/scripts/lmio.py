@@ -5,7 +5,11 @@ from typing import Optional
 
 from landmarkerio import TEMPLATE_DINAME
 from landmarkerio.cache import cache_assets, filepath_as_asset_id_under_dir
-from landmarkerio.fit import AutoFit, autofit_from_config, require_fit_dependencies
+from landmarkerio.fit import (
+    FitRegistry,
+    registry_from_config,
+    require_fit_dependencies,
+)
 from landmarkerio.landmark import (
     InplaceFileLmAdapter,
     LandmarkAdapter,
@@ -45,18 +49,20 @@ def launch_server(
     # build an inplace adapter to serve landmarks found in-situ next to assets
     lm_adapter: LandmarkAdapter = InplaceFileLmAdapter(asset_ids_to_path)
 
-    auto_fit: Optional[AutoFit] = None
+    auto_fit: Optional[FitRegistry] = None
     if fit is not None:
         if mode != "image":
             raise SystemExit("--fit is for images")
         require_fit_dependencies()
         # a bare "--fit" is Path(""), which is "." (a directory is never a config): defaults
-        auto_fit = autofit_from_config(
+        auto_fit = registry_from_config(
             asset_ids_to_path, None if fit == Path() else fit
         )
         # learn from what is already there, then from every save
         auto_fit.notify_saved("")
-        lm_adapter = ReviewedLmAdapter(lm_adapter, auto_fit.notify_saved)
+        lm_adapter = ReviewedLmAdapter(
+            lm_adapter, auto_fit.notify_saved, proposals=auto_fit.proposals
+        )
 
     app = serve_from_cache(
         mode,

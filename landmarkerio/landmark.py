@@ -152,21 +152,54 @@ class ReviewedLmAdapter(LandmarkAdapter):
     r"""
     Wraps an adapter so that what is saved through the server is marked ``"reviewed": true``
     and a hook is told about it (the fit service learns from it).
+
+    With ``proposals`` (what the models pre-fitted, see :class:`landmarkerio.fit.Proposals`) an
+    image without saved landmarks is served with its proposal, marked ``"reviewed": false``,
+    and saving it (as it is, or edited) writes the real landmarks, with ``"fitted_by"`` the
+    model that proposed them.
     """
 
-    def __init__(self, inner: LandmarkAdapter, on_saved: Any) -> None:
+    def __init__(
+        self, inner: LandmarkAdapter, on_saved: Any, proposals: Any = None
+    ) -> None:
         self.inner = inner
         self.on_saved = on_saved
+        self.proposals = proposals
 
     def asset_id_to_lm_id(self) -> Dict[str, Sequence[str]]:
-        return self.inner.asset_id_to_lm_id()
+        found = dict(self.inner.asset_id_to_lm_id())
+        if self.proposals is not None:
+            for asset_id in self.proposals.ids():
+                found.setdefault(asset_id, ["inplace"])
+        return found
 
     def landmark_ids(self, asset_id: str) -> Sequence[str]:
         return self.inner.landmark_ids(asset_id)
 
     def load_landmark(self, asset_id: str, lm_id: str) -> Dict[str, Any]:
-        return self.inner.load_landmark(asset_id, lm_id)
+        try:
+            return self.inner.load_landmark(asset_id, lm_id)
+        except FileNotFoundError:
+            proposal = (
+                self.proposals.read(asset_id) if self.proposals is not None else None
+            )
+            if proposal is None:
+                raise
+            return proposal
 
     def save_landmark(self, asset_id: str, lm_id: str, lm_json: Dict[str, Any]) -> None:
-        self.inner.save_landmark(asset_id, lm_id, {**lm_json, "reviewed": True})
+        saved = {**lm_json, "reviewed": True}
+        saved.pop("source", None)
+        if self.proposals is not None:
+            fitted_by = self.proposals.take(asset_id)
+            if fitted_by is None:  # a save of saved landmarks keeps who started them
+                try:
+                    fitted_by = self.inner.load_landmark(asset_id, lm_id).get(
+                        "fitted_by"
+                    )
+                except (FileNotFoundError, ValueError):
+                    pass
+            if fitted_by is not None:
+                saved["fitted_by"] = fitted_by
+        self.inner.save_landmark(asset_id, lm_id, saved)
         self.on_saved(asset_id)

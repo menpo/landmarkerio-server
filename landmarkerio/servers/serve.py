@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from sanic import Blueprint, Sanic
 from sanic_cors import CORS
@@ -9,7 +9,7 @@ from landmarkerio.collection import (
     CollectionAdapter,
     FileCollectionAdapter,
 )
-from landmarkerio.fit import AutoFit
+from landmarkerio.fit import AutoFit, FitRegistry
 from landmarkerio.http_auth.sanic_httpauth import HTTPBasicAuth
 from landmarkerio.landmark import LandmarkAdapter
 from landmarkerio.servers.api.v2 import build_v2_blueprint
@@ -40,7 +40,7 @@ def serve_from_cache(
     collection_dir: Optional[PathLike] = None,
     username: Optional[str] = None,
     password: Optional[str] = None,
-    fit: Optional[AutoFit] = None,
+    fit: Optional[Union[AutoFit, FitRegistry]] = None,
 ):
     app = Sanic(name="landmarkerio")
     CORS(app)
@@ -73,6 +73,14 @@ def serve_from_cache(
         fit=fit,
     )
     app.blueprint(v2_api)
+
+    if fit is not None:
+        registry = FitRegistry.of(fit)
+
+        @app.after_server_start
+        async def prefit_at_start(app):
+            # fit the images without landmarks up front, if the config asks for it
+            registry.start_prefit(template_adapter.load_template)
 
     if username is not None and password is not None:
         add_basic_auth_to_api(v2_api, username, password)

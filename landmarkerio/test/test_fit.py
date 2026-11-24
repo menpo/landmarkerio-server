@@ -14,10 +14,14 @@ from landmarkerio.fit import (
     AutoFit,
     Busy,
     FitModel,
+    FitRegistry,
     NothingToLearn,
     NothingToRefine,
     NotReady,
+    Proposals,
+    UnknownModel,
     autofit_from_config,
+    registry_from_config,
 )
 from landmarkerio.landmark import InplaceFileLmAdapter, ReviewedLmAdapter
 from landmarkerio.servers.serve import serve_from_cache
@@ -58,6 +62,13 @@ class Full(Minimal):
         if box is None:
             return np.zeros((1, 2))
         return box.mean(axis=0, keepdims=True)  # the middle of the box
+
+
+class Detector(Minimal):
+    """A pretrained fitter that also finds where to start (nothing to learn)."""
+
+    def initialize(self, state, image, box=None):
+        return np.zeros((1, 2))
 
 
 class Incrementing(Full):
@@ -365,33 +376,99 @@ def test_a_second_job_while_one_runs_is_refused(folder):
         fit.train()
 
 
-def test_predict_fits_every_unlabelled_image_and_writes_them_unreviewed(folder):
+SKELETON = {
+    "version": 2,
+    "labels": [{"label": "all", "mask": [0]}],
+    "landmarks": {"points": [[None, None]], "connectivity": []},
+}
+
+
+def test_predict_is_a_prefit_that_keeps_proposals_apart_from_saved_landmarks(folder):
     reviewed(folder, 3)
     write(folder, "bare1", None)
     write(folder, "bare2", None)
     fit = make(folder)
     fit.refresh()  # built from 3
-    skeleton = {
-        "version": 2,
-        "labels": [{"label": "all", "mask": [0]}],
-        "landmarks": {"points": [[None, None]], "connectivity": []},
-    }
-    job = fit.predict(skeleton)
+    job = fit.predict(SKELETON)
     assert (
         job["state"] == "done"
         and job["total"] == 2
         and job["message"] == "fitted 2 images"
     )
     for name in ("bare1", "bare2"):
-        data = json.loads((folder / f"{name}.ljson").read_text())
+        assert not (folder / f"{name}.ljson").exists()  # nothing saved
+        data = json.loads((folder / ".prefit" / "Full" / f"{name}.ljson").read_text())
         assert data["landmarks"]["points"] == [
             [3.0, 3.0]
         ]  # initialize (0) + a 3-image state
-        assert data["reviewed"] is False and data["labels"] == skeleton["labels"]
-    # they are not annotations until saved through the server, and the skeleton is untouched
-    assert make(folder).annotated_ids() == ["a0.png", "a1.png", "a2.png"]
-    assert skeleton["landmarks"]["points"] == [[None, None]]
-    assert make(folder).unlabelled_ids() == []
+        assert data["reviewed"] is False and data["labels"] == SKELETON["labels"]
+        assert data["source"] == "prefit:Full"
+    # a proposal is not an annotation and the image is still unlabelled
+    assert fit.annotated_ids() == ["a0.png", "a1.png", "a2.png"]
+    assert fit.unlabelled_ids() == ["bare1.png", "bare2.png"]
+    assert SKELETON["landmarks"]["points"] == [[None, None]]
+    assert fit.status()["proposals"] == 2
+
+
+def test_prefit_skips_proposals_unless_overwriting_and_can_chain_frames(folder):
+    for i, name in enumerate(["f1", "f2", "f3"]):
+        write(folder, name, None)
+    write(folder, "f0", [[10.0, 10.0]], reviewed=True)
+    reviewed(folder, 2)
+    fit = make(folder, min_images=2)
+    fit.refresh()  # 3 images: a0, a1, f0 -> fits move by 3
+    fit.predict(SKELETON)
+    path = lambda n: folder / ".prefit" / "Full" / f"{n}.ljson"  # noqa: E731
+    first = json.loads(path("f1").read_text())["landmarks"]["points"]
+    assert first == [[3.0, 3.0]]  # from the model's own start
+    path("f1").write_text(path("f1").read_text().replace("3.0", "9.0"))
+    assert fit.predict(SKELETON)["total"] == 0  # all have proposals
+    assert json.loads(path("f1").read_text())["landmarks"]["points"] == [[9.0, 9.0]]
+    # chained: f1 starts from the saved f0 (frames in order), f2 from f1, ...
+    fit.predict(SKELETON, overwrite=True, chain=True)
+    got = [
+        json.loads(path(n).read_text())["landmarks"]["points"][0][0]
+        for n in ("f1", "f2", "f3")
+    ]
+    assert got == [13.0, 16.0, 19.0]
+
+
+def test_a_proposal_is_served_until_saved_and_saving_it_as_it_is_accepts_it(folder):
+    write(folder, "a", None)
+    ids = {"a": folder / "a.png"}
+    proposals = Proposals(ids)
+    told = []
+    adapter = ReviewedLmAdapter(InplaceFileLmAdapter(ids), told.append, proposals)
+    with pytest.raises(FileNotFoundError):
+        adapter.load_landmark("a", "inplace")
+    assert adapter.asset_id_to_lm_id() == {}
+    proposals.write("m1", "a", {**BODY, "reviewed": False, "source": "prefit:m1"})
+    assert adapter.asset_id_to_lm_id() == {"a": ["inplace"]}
+    served = adapter.load_landmark("a", "inplace")
+    assert served["reviewed"] is False and served["source"] == "prefit:m1"
+    # nothing is saved, so nothing is learnt from
+    assert not (folder / "a.ljson").exists() and told == []
+    # accept it as it is
+    adapter.save_landmark("a", "inplace", {k: v for k, v in served.items()})
+    data = json.loads((folder / "a.ljson").read_text())
+    assert data["reviewed"] is True and data["fitted_by"] == "m1"
+    assert "source" not in data and told == ["a"]
+    assert not proposals.has("a")  # the proposal is gone
+    # saved again later: still says who started it, and the saved one is what is served
+    adapter.save_landmark("a", "inplace", BODY)
+    assert json.loads((folder / "a.ljson").read_text())["fitted_by"] == "m1"
+    assert adapter.load_landmark("a", "inplace")["reviewed"] is True
+
+
+def test_the_newest_proposal_is_the_one_served(folder):
+    write(folder, "a", None)
+    proposals = Proposals({"a": folder / "a.png"})
+    proposals.write("old", "a", {"v": 1})
+    os.utime(proposals.path("old", "a"), (1, 1))
+    proposals.write("new", "a", {"v": 2})
+    assert proposals.models("a") == ["new", "old"]
+    assert proposals.read("a") == {"v": 2} and proposals.read("a", "old") == {"v": 1}
+    assert proposals.take("a") == "new" and proposals.ids() == []
 
 
 def test_predict_needs_a_model_that_can_start_from_nothing(folder):
@@ -507,6 +584,124 @@ def test_no_config_is_the_default_model():
     from landmarkerio.fit_models import PatchAAM
 
     assert isinstance(autofit_from_config({}).model, PatchAAM)
+
+
+# ---- several models
+def two_models(folder, **kwargs):
+    ids = {p.name: p for p in sorted(folder.glob("*.png"))}
+    proposals = Proposals(ids)
+    kw = dict(background=False, proposals=proposals, **kwargs)
+    return FitRegistry(
+        {
+            "detector": FakeAutoFit(
+                ids, Detector(), initial_state=5, name="detector", **kw
+            ),
+            "aam": FakeAutoFit(ids, Full(), min_images=3, name="aam", **kw),
+        }
+    )
+
+
+def test_a_registry_has_models_by_name_and_the_first_is_the_default(folder):
+    reviewed(folder, 3)
+    registry = two_models(folder)
+    assert registry.get().name == "detector" and registry.get("aam").name == "aam"
+    with pytest.raises(UnknownModel, match="no model 'nope'"):
+        registry.get("nope")
+    status = registry.status()
+    assert status["name"] == "detector" and status["default"] == "detector"
+    assert status["ready"] is True and status["models"]["aam"]["ready"] is False
+    assert FitRegistry.of(registry) is registry
+    assert FitRegistry.of(registry.get("aam")).default == "aam"
+
+
+def test_saving_is_told_to_every_model_that_learns(folder):
+    reviewed(folder, 3)
+    registry = two_models(folder)
+    registry.notify_saved("a0.png")
+    assert registry.get("aam").status()["trained_on"] == 3
+    assert registry.get("detector").status()["trained_on"] == 0  # cannot learn
+
+
+def test_each_model_writes_its_own_proposals(folder):
+    reviewed(folder, 3)
+    write(folder, "bare", None)
+    registry = two_models(folder)
+    registry.notify_saved("")
+    registry.get("detector").predict(SKELETON)
+    registry.get("aam").predict(SKELETON)
+    assert sorted(registry.proposals.models("bare.png")) == ["aam", "detector"]
+    assert (
+        registry.proposals.ids("aam")
+        == registry.proposals.ids("detector")
+        == ["bare.png"]
+    )
+    assert registry.get("aam").status()["proposals"] == 1
+
+
+def test_the_prefit_the_config_asks_for_runs_at_start(folder):
+    write(folder, "bare", None)
+    registry = two_models(folder)
+    assert registry.start_prefit(lambda t: SKELETON) is None  # not asked for
+    registry.prefit_config = {"model": "detector", "template": "t"}
+    job = registry.start_prefit(lambda t: SKELETON)
+    assert job["state"] == "done" and registry.proposals.ids("detector") == ["bare.png"]
+    registry.prefit_config = {"model": "detector", "template": "missing"}
+
+    def broken(t):
+        raise KeyError(t)
+
+    assert registry.start_prefit(broken) is None  # logged, the server still starts
+
+
+def test_config_with_several_models_and_a_prefit(folder):
+    (folder / "fit.yml").write_text(
+        "learn_on_save: false\n"
+        "models:\n"
+        "  - name: first\n"
+        "    model: landmarkerio.test.test_fit:FromConfig\n"
+        "    options: {scale: 2}\n"
+        "  - model: landmarkerio.test.test_fit:FromConfig\n"
+        "    name: second\n"
+        "    min_images: 9\n"
+        "    learn_on_save: true\n"
+        "prefit: {model: second, template: face}\n"
+    )
+    registry = registry_from_config({}, folder / "fit.yml")
+    assert list(registry.models) == ["first", "second"] and registry.default == "first"
+    assert registry.get("first").model.scale == 2
+    assert registry.get("second").min_images == 9
+    # settings at the top are the defaults; a model can change them (FromConfig cannot
+    # increment, so the switch stays off for it either way)
+    assert registry.get("first").learn_on_save is False
+    assert registry.prefit_config == {"model": "second", "template": "face"}
+    assert registry.get("first").proposals is registry.get("second").proposals
+
+
+@pytest.mark.parametrize(
+    "text, message",
+    [
+        ("models: []\n", "list of models"),
+        ("models: [{name: a}]\nmodel: patch-aam\n", "next to it"),
+        ("models: [{nme: a}]\n", "unknown settings"),
+        (
+            "models: [{model: landmarkerio.test.test_fit:FromConfig},"
+            " {model: landmarkerio.test.test_fit:FromConfig}]\n",
+            "two models are called",
+        ),
+        (
+            "model: landmarkerio.test.test_fit:FromConfig\nprefit: {model: x}\n",
+            "needs a 'template'",
+        ),
+        (
+            "model: landmarkerio.test.test_fit:FromConfig\nprefit: {model: x, template: t}\n",
+            "prefit uses 'x'",
+        ),
+    ],
+)
+def test_a_bad_multi_model_config_says_what_is_wrong(folder, text, message):
+    (folder / "fit.yml").write_text(text)
+    with pytest.raises(ValueError, match=message):
+        registry_from_config({}, folder / "fit.yml")
 
 
 # ---- the API
@@ -634,7 +829,7 @@ def test_bare_fit_flag_means_the_default_config(monkeypatch, tmp_path):
         raise Stop
 
     monkeypatch.setattr(lmio, "require_fit_dependencies", lambda: None)
-    monkeypatch.setattr(lmio, "autofit_from_config", fake)
+    monkeypatch.setattr(lmio, "registry_from_config", fake)
     with pytest.raises(Stop):
         lmio.main(ns)
     assert given == [None]
@@ -663,3 +858,99 @@ def test_api_learn_one_saved_image_and_the_learn_on_save_switch(api):
     assert response.status == 200 and response.json["learn_on_save"] is True
     _, response = client.post("/api/v2/fit/learn_on_save", json={"enabled": "yes"})
     assert response.status == 400
+
+
+@pytest.fixture
+def api2(folder, tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    reviewed(folder, 3)
+    write(folder, "new", [[10.0, 20.0]], reviewed=None)
+    write(folder, "bare", None)
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    _, ids = cache_assets(
+        "image", filepath_as_asset_id_under_dir(folder), folder, cache
+    )
+    proposals = Proposals(ids)
+    kw = dict(background=False, proposals=proposals)
+    registry = FitRegistry(
+        {
+            "detector": FakeAutoFit(
+                ids, Full(), initial_state=[1], name="detector", **kw
+            ),
+            "aam": FakeAutoFit(ids, Full(), min_images=3, name="aam", **kw),
+        }
+    )
+    adapter = ReviewedLmAdapter(
+        InplaceFileLmAdapter(ids), registry.notify_saved, registry.proposals
+    )
+    app = serve_from_cache("image", cache, adapter, fit=registry)
+    Sanic.test_mode = True
+    return app.test_client, registry
+
+
+def test_api_models_by_name(api2):
+    client, registry = api2
+    _, status = client.get("/api/v2/fit")
+    assert status.json["name"] == "detector" and set(status.json["models"]) == {
+        "detector",
+        "aam",
+    }
+    # the default model is the one without a name in the route
+    _, response = client.post("/api/v2/fit/new.png/inplace", json=BODY)
+    assert response.json["landmarks"]["points"] == [[11.0, 21.0]]
+    assert response.json["fitted_by"] == "detector"
+    # a model that is not ready says so, the other one is not affected
+    _, response = client.post("/api/v2/fit/models/aam/fit/new.png/inplace", json=BODY)
+    assert (
+        response.status == 409 and "needs 3 reviewed images" in response.json["message"]
+    )
+    _, response = client.post("/api/v2/fit/models/aam/train")
+    assert response.status == 200 and response.json["kind"] == "train"
+    _, response = client.post("/api/v2/fit/models/aam/fit/new.png/inplace", json=BODY)
+    assert response.json["landmarks"]["points"] == [[13.0, 23.0]]
+    assert response.json["fitted_by"] == "aam"
+    _, response = client.get("/api/v2/fit/models/aam/box/bare.png")
+    assert response.status == 200
+    _, response = client.post("/api/v2/fit/models/nope/train")
+    assert response.status == 404 and "no model 'nope'" in response.json["message"]
+    _, response = client.post("/api/v2/fit/models/aam/fit/nope/inplace", json=BODY)
+    assert response.status == 404
+    _, response = client.post(
+        "/api/v2/fit/models/aam/learn_on_save", json={"enabled": False}
+    )
+    assert response.status == 200 and response.json["learn_on_save"] is False
+    assert registry.get("detector").learn_on_save is True  # the other is not changed
+
+
+def test_api_prefit_then_accept_as_it_is(api2):
+    client, registry = api2
+    # nothing there to serve
+    _, response = client.get("/api/v2/landmarks")
+    assert "bare.png" not in response.json
+    _, response = client.post(
+        "/api/v2/fit/models/detector/predict/ibug68", json={"overwrite": True}
+    )
+    assert response.status == 200 and response.json["total"] == 1
+    _, response = client.post("/api/v2/fit/models/nope/predict/ibug68")
+    assert response.status == 404
+    _, response = client.post("/api/v2/fit/models/aam/predict/ibug68")
+    assert response.status == 409  # the aam has no model yet
+    # the landmarks of the image are now the proposal
+    _, response = client.get("/api/v2/landmarks")
+    assert response.json["bare.png"] == ["inplace"]
+    _, response = client.get("/api/v2/landmarks/bare.png/inplace")
+    assert (
+        response.json["reviewed"] is False
+        and response.json["source"] == "prefit:detector"
+    )
+    assert registry.get("aam").status()["unlabelled"] == 1  # still unlabelled
+    # accepted with one save and no edits
+    _, response = client.put("/api/v2/landmarks/bare.png/inplace", json=response.json)
+    assert response.status == 200
+    _, response = client.get("/api/v2/landmarks/bare.png/inplace")
+    assert (
+        response.json["reviewed"] is True and response.json["fitted_by"] == "detector"
+    )
+    assert "source" not in response.json
+    assert registry.get("aam").status()["annotated"] == 4

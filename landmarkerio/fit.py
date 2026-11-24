@@ -153,6 +153,77 @@ class FitModel(abc.ABC):
         return self._has("initialize")
 
 
+class Proposals:
+    r"""
+    What models fitted to images that have no saved landmarks (the *pre-fit*), kept apart from
+    the landmarks the annotator saved: a proposal is never an annotation, so it can never be
+    learnt from or counted as labelled. It lives next to the image, in
+    ``.prefit/<model>/<image name>.ljson``, and is served in place of landmarks until the
+    annotator saves (accepting it as it is is a save), which writes the real ``.ljson``.
+    """
+
+    DIRNAME = ".prefit"
+
+    def __init__(self, ids_to_paths: Dict[str, Path]) -> None:
+        self.ids_to_paths = ids_to_paths
+
+    def _dir(self, asset_id: str) -> Path:
+        return Path(self.ids_to_paths[asset_id]).parent / self.DIRNAME
+
+    def path(self, model: str, asset_id: str) -> Path:
+        return (
+            self._dir(asset_id)
+            / model
+            / (Path(self.ids_to_paths[asset_id]).stem + ".ljson")
+        )
+
+    def models(self, asset_id: str) -> List[str]:
+        """The models that have a proposal for an image, the newest first."""
+        found = [
+            f
+            for f in self._dir(asset_id).glob(
+                "*/" + Path(self.ids_to_paths[asset_id]).stem + ".ljson"
+            )
+        ]
+        found.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+        return [f.parent.name for f in found]
+
+    def has(self, asset_id: str, model: Optional[str] = None) -> bool:
+        return (
+            bool(self.models(asset_id))
+            if model is None
+            else self.path(model, asset_id).exists()
+        )
+
+    def ids(self, model: Optional[str] = None) -> List[str]:
+        return [i for i in sorted(self.ids_to_paths) if self.has(i, model)]
+
+    def write(self, model: str, asset_id: str, data: Dict[str, Any]) -> None:
+        path = self.path(model, asset_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=4, sort_keys=True))
+
+    def read(
+        self, asset_id: str, model: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """The proposal of ``model`` (the newest model's if not given), or ``None``."""
+        models = self.models(asset_id) if model is None else [model]
+        for name in models:
+            try:
+                return json.loads(self.path(name, asset_id).read_text())
+            except (OSError, ValueError):
+                continue
+        return None
+
+    def take(self, asset_id: str) -> Optional[str]:
+        """The proposals of an image were accepted or replaced by a save: remove them all and
+        return the model of the newest one."""
+        models = self.models(asset_id)
+        for name in models:
+            self.path(name, asset_id).unlink(missing_ok=True)
+        return models[0] if models else None
+
+
 class AutoFit:
     r"""
     The model that learns from saved landmarks and fits new images.
@@ -179,6 +250,11 @@ class AutoFit:
         (use it as ``initial_state`` next time).
     background : `bool`, optional
         Run in a background thread (``False`` is for tests: everything finishes before returning).
+    name : `str`, optional
+        What the model is called to the annotator (and where its proposals are kept); the class
+        name if not given.
+    proposals : :class:`Proposals`, optional
+        Where :meth:`predict` writes (shared by all the models of a :class:`FitRegistry`).
     """
 
     def __init__(
@@ -191,9 +267,13 @@ class AutoFit:
         learn_on_save: bool = True,
         save_path: Optional[Path] = None,
         background: bool = True,
+        name: str = "",
+        proposals: Optional["Proposals"] = None,
     ) -> None:
         self.ids_to_paths = ids_to_paths
         self.model = model
+        self.name = name or type(model).__name__
+        self.proposals = proposals if proposals is not None else Proposals(ids_to_paths)
         self.min_images = model.min_images if min_images is None else min_images
         self.from_saved = from_saved
         self.learn_on_save = learn_on_save and model.can_increment
@@ -257,8 +337,10 @@ class AutoFit:
             learnt = len(self._learnt)
         needed = 0 if self._initial is not None else self.min_images
         return {
+            "name": self.name,
             "ready": ready,
             "model": type(self.model).__name__,
+            "proposals": len(self.proposals.ids(self.name)),
             "can_increment": self.model.can_increment,
             "can_build": self.model.can_build,
             "can_initialize": self.model.can_initialize,
@@ -449,15 +531,26 @@ class AutoFit:
 
         return self._start_job("train", run, len(ids))
 
-    def predict(self, skeleton: Dict[str, Any]) -> Dict[str, Any]:
+    def predict(
+        self,
+        skeleton: Dict[str, Any],
+        overwrite: bool = False,
+        chain: bool = False,
+    ) -> Dict[str, Any]:
         r"""
-        Fit every image that has no landmarks and write its ``.ljson`` (``"reviewed": false``,
-        so it does not count as an annotation until saved through the server), as a job.
+        The *pre-fit*: fit every image that has no saved landmarks and keep the result as a
+        proposal (see :class:`Proposals`), as a job. Saved landmarks are never touched and a
+        proposal is never learnt from.
 
         Parameters
         ----------
         skeleton : `dict`
-            The LJSON of the template: its labels and connectivity are copied to each file.
+            The LJSON of the template: its labels and connectivity are copied to each proposal.
+        overwrite : `bool`, optional
+            Fit again the images that already have a proposal from this model.
+        chain : `bool`, optional
+            Start each image from the landmarks of the one before it (in asset order, saved or
+            proposed) instead of the model's own start: for the frames of a video.
         """
         if self._fitter is None:
             raise NotReady(self._not_ready_message())
@@ -465,31 +558,46 @@ class AutoFit:
             raise NothingToLearn(
                 f"{type(self.model).__name__} cannot start from nothing (no initialize())"
             )
-        ids = self.unlabelled_ids()
+        todo = {
+            i
+            for i in self.unlabelled_ids()
+            if overwrite or not self.proposals.has(i, self.name)
+        }
 
         def run(tick: Any) -> str:
             import menpo.io as mio
 
             done = 0
-            for asset_id in ids:
+            previous: Optional[np.ndarray] = None
+            for asset_id in sorted(self.ids_to_paths):
+                if asset_id not in todo:
+                    saved = self._complete_points(self._read(asset_id))
+                    if saved is None:
+                        proposal = self.proposals.read(asset_id, self.name)
+                        saved = self._complete_points(proposal)
+                    previous = saved if saved is not None else previous
+                    continue
                 with self._lock:
                     state, fitter = self._state, self._fitter
                 image = self.model.prepare(
                     mio.import_image(self.ids_to_paths[asset_id]), False
                 )
-                start = np.asarray(self.model.initialize(state, image))
+                if chain and previous is not None:
+                    start = previous
+                else:
+                    start = np.asarray(self.model.initialize(state, image))
                 points = np.asarray(self.model.fit(fitter, image, start))
+                previous = points
                 data = copy.deepcopy(skeleton)
                 data["landmarks"]["points"] = points.tolist()
                 data["reviewed"] = False
-                self._ljson_path(asset_id).write_text(
-                    json.dumps(data, indent=4, sort_keys=True)
-                )
+                data["source"] = f"prefit:{self.name}"
+                self.proposals.write(self.name, asset_id, data)
                 done += 1
                 tick()
             return f"fitted {done} images"
 
-        return self._start_job("predict", run, len(ids))
+        return self._start_job("predict", run, len(todo))
 
     # ---- fitting
     def _not_ready_message(self) -> str:
@@ -592,7 +700,75 @@ class AutoFit:
         return images
 
 
-CONFIG_KEYS = {
+class UnknownModel(KeyError):
+    pass
+
+
+class FitRegistry:
+    r"""
+    Any number of models, each an :class:`AutoFit`, that the annotator chooses between: e.g. a
+    pretrained detector to start from, then an AAM trained on the first corrections.
+
+    Parameters
+    ----------
+    models : `dict` of `str` to :class:`AutoFit`
+        The models by name; the first is the default (what the routes without a model use).
+    prefit : `dict`, optional
+        ``{"model", "template", "overwrite", "chain"}``: what to pre-fit when the server starts.
+    """
+
+    def __init__(
+        self,
+        models: Dict[str, AutoFit],
+        prefit: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if not models:
+            raise ValueError("a fit service needs at least one model")
+        self.models = models
+        self.default = next(iter(models))
+        self.prefit_config = prefit
+        first = models[self.default]
+        self.ids_to_paths = first.ids_to_paths
+        self.proposals = first.proposals
+
+    @classmethod
+    def of(cls, fit: Any) -> "FitRegistry":
+        return fit if isinstance(fit, FitRegistry) else cls({fit.name: fit})
+
+    def get(self, name: Optional[str] = None) -> AutoFit:
+        try:
+            return self.models[self.default if name is None else name]
+        except KeyError:
+            raise UnknownModel(f"no model {name!r}; there are {sorted(self.models)}")
+
+    def status(self) -> Dict[str, Any]:
+        r"""The default model's status (for a client that knows only one model), and all of them."""
+        return {
+            **self.get().status(),
+            "default": self.default,
+            "models": {n: m.status() for n, m in self.models.items()},
+        }
+
+    def notify_saved(self, asset_id: str) -> None:
+        for model in self.models.values():
+            model.notify_saved(asset_id)
+
+    def start_prefit(self, load_template: Any) -> Optional[Dict[str, Any]]:
+        r"""Run the pre-fit the config asks for (``load_template(name)`` is the template's LJSON)."""
+        config = self.prefit_config
+        if not config:
+            return None
+        try:
+            skeleton = load_template(config["template"])
+            return self.get(config["model"]).predict(
+                skeleton, bool(config.get("overwrite")), bool(config.get("chain"))
+            )
+        except Exception as error:  # noqa: BLE001
+            logger.error("the pre-fit at start failed: {}", error)
+            return None
+
+
+MODEL_KEYS = {
     "model",
     "options",
     "initial_state",
@@ -601,28 +777,11 @@ CONFIG_KEYS = {
     "learn_on_save",
     "min_images",
 }
+CONFIG_KEYS = MODEL_KEYS | {"models", "prefit"}
+PREFIT_KEYS = {"model", "template", "on_start", "overwrite", "chain"}
 
 
-def autofit_from_config(
-    ids_to_paths: Dict[str, Path], config_path: Optional[Path] = None
-) -> AutoFit:
-    r"""
-    Make the :class:`AutoFit` that a config file describes (the defaults without one).
-
-    .. code-block:: yaml
-
-        model: patch-aam             # a short name (patch-aam, holistic-aam) or package.module:Class
-        options:                     # given to the model's constructor
-          patch_sizes: [15, 23]
-          diagonal: 150
-        initial_state: faces.pkl     # optional: start from this (read by the model's load())
-        save_state: learnt.pkl       # optional: written after each update
-        from_saved: true             # false: learn from every image with complete landmarks
-        learn_on_save: true          # learn from each image as it is saved (needs increment)
-        min_images: 8                # reviewed images to build a model without an initial state
-
-    Paths are relative to the config file.
-    """
+def _read_config(config_path: Optional[Path]) -> Any:
     import yaml
 
     config: Dict[str, Any] = {}
@@ -638,22 +797,125 @@ def autofit_from_config(
                 f"unknown settings {sorted(unknown)} in {config_path}; "
                 f"known: {sorted(CONFIG_KEYS)}"
             )
-    model = load_model_class(config.get("model", "patch-aam"))(
-        **(config.get("options") or {})
-    )
+    return config, base
+
+
+def _autofit(
+    ids_to_paths: Dict[str, Path],
+    entry: Dict[str, Any],
+    base: Path,
+    defaults: Dict[str, Any],
+    proposals: Optional[Proposals],
+    name: Optional[str] = None,
+) -> AutoFit:
+    spec = entry.get("model", "patch-aam")
+    model = load_model_class(spec)(**(entry.get("options") or {}))
     initial = None
-    if config.get("initial_state"):
-        initial = model.load(base / config["initial_state"])
-    save_path = base / config["save_state"] if config.get("save_state") else None
+    if entry.get("initial_state"):
+        initial = model.load(base / entry["initial_state"])
+    save_path = base / entry["save_state"] if entry.get("save_state") else None
+
+    def setting(key: str, default: Any) -> Any:
+        return entry.get(key, defaults.get(key, default))
+
     return AutoFit(
         ids_to_paths,
         model,
         initial_state=initial,
-        min_images=config.get("min_images"),
-        from_saved=bool(config.get("from_saved", True)),
-        learn_on_save=bool(config.get("learn_on_save", True)),
+        min_images=setting("min_images", None),
+        from_saved=bool(setting("from_saved", True)),
+        learn_on_save=bool(setting("learn_on_save", True)),
         save_path=save_path,
+        name=name or entry.get("name") or "",
+        proposals=proposals,
     )
+
+
+def autofit_from_config(
+    ids_to_paths: Dict[str, Path], config_path: Optional[Path] = None
+) -> AutoFit:
+    r"""The first (default) model of the config, as an :class:`AutoFit`; see :func:`registry_from_config`."""
+    return registry_from_config(ids_to_paths, config_path).get()
+
+
+def registry_from_config(
+    ids_to_paths: Dict[str, Path], config_path: Optional[Path] = None
+) -> FitRegistry:
+    r"""
+    Make the :class:`FitRegistry` that a config file describes (the defaults without one).
+
+    One model (the settings are at the top):
+
+    .. code-block:: yaml
+
+        model: patch-aam             # a short name (patch-aam, holistic-aam) or package.module:Class
+        options:                     # given to the model's constructor
+          patch_sizes: [15, 23]
+          diagonal: 150
+        initial_state: faces.pkl     # optional: start from this (read by the model's load())
+        save_state: learnt.pkl       # optional: written after each update
+        from_saved: true             # false: learn from every image with complete landmarks
+        learn_on_save: true          # learn from each image as it is saved (needs increment)
+        min_images: 8                # reviewed images to build a model without an initial state
+
+    Several models, which the annotator chooses between (the first is the default; settings at
+    the top are the defaults of every model):
+
+    .. code-block:: yaml
+
+        from_saved: true
+        models:
+          - name: detector                       # what the annotator sees
+            model: mypackage.mediapipe:Landmarker
+            options: {path: face_landmarker.task}
+          - name: aam
+            model: patch-aam
+        prefit:                      # optional: fit the images without landmarks up front
+          model: detector            # (as proposals: a save accepts one, nothing learns from them)
+          template: face68
+          on_start: true             # else with POST /fit/models/<name>/predict/<template>
+          chain: false               # start each image from the one before (frames of a video)
+          overwrite: false
+
+    Paths are relative to the config file.
+    """
+    config, base = _read_config(config_path)
+    proposals = Proposals(ids_to_paths)
+    entries = config.get("models")
+    if entries is None:
+        entries = [{k: v for k, v in config.items() if k in MODEL_KEYS}]
+    else:
+        stray = set(config) & {"model", "options", "initial_state", "save_state"}
+        if stray or not isinstance(entries, list) or not entries:
+            raise ValueError(
+                "'models' must be a list of models, and settings of a single model "
+                f"cannot be next to it (found {sorted(stray)})"
+            )
+    models: Dict[str, AutoFit] = {}
+    defaults = {k: v for k, v in config.items() if k in MODEL_KEYS}
+    for entry in entries:
+        unknown = set(entry) - MODEL_KEYS - {"name"}
+        if unknown:
+            raise ValueError(f"unknown settings {sorted(unknown)} of a model")
+        fit = _autofit(ids_to_paths, entry, base, defaults, proposals)
+        if fit.name in models:
+            raise ValueError(f"two models are called {fit.name!r}: give them a 'name'")
+        models[fit.name] = fit
+    prefit = config.get("prefit")
+    if prefit is not None:
+        unknown = set(prefit) - PREFIT_KEYS
+        if unknown or "template" not in prefit:
+            raise ValueError(
+                f"prefit needs a 'template' and knows {sorted(PREFIT_KEYS)}; got {sorted(prefit)}"
+            )
+        prefit = {"model": next(iter(models)), **prefit}
+        if prefit["model"] not in models:
+            raise ValueError(
+                f"prefit uses {prefit['model']!r}; the models are {sorted(models)}"
+            )
+        if not prefit.get("on_start", True):
+            prefit = None
+    return FitRegistry(models, prefit)
 
 
 def _box(box: Sequence[Sequence[float]]) -> np.ndarray:
