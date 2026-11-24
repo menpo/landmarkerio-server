@@ -111,7 +111,31 @@ What the server offers follows from what the model can do (`landmarkerio.fit.Fit
 | `build` | training from scratch on all annotations (so you can begin with none) |
 | `initialize` | fitting an image that has no landmarks: from a box you draw, or the model's own suggestion |
 
-A fit starts from, in this order: a **box you drew**, else the **current landmarks** if all are placed, else the model's own start. It learns and saves nothing. **The model learns only from saved landmarks**, the ones in the file, never what is on the screen: saving through landmarker.io is what marks an image as reviewed. With `learn_on_save` each save is learnt from at once; `POST /api/v2/fit/learn_on_save` (`{"enabled": false}`) switches that off and `POST /api/v2/fit/learn/<asset>` then adds one saved image when you ask (a 409 says if it is not saved, or the model cannot increment). Saving an image again that was learnt from rebuilds from the initial state, since an incremental model cannot forget. Training from all annotations and fitting every unlabelled image are jobs (`POST /api/v2/fit/train`, `POST /api/v2/fit/predict/<template>`; progress is in `GET /api/v2/fit`), and the files that `predict` writes are marked `"reviewed": false`, so they only count as annotations once you save them.
+A fit starts from, in this order: a **box you drew**, else the **current landmarks** if all are placed, else the model's own start. It learns and saves nothing. **The model learns only from saved landmarks**, the ones in the file, never what is on the screen: saving through landmarker.io is what marks an image as reviewed. With `learn_on_save` each save is learnt from at once; `POST /api/v2/fit/learn_on_save` (`{"enabled": false}`) switches that off and `POST /api/v2/fit/learn/<asset>` then adds one saved image when you ask (a 409 says if it is not saved, or the model cannot increment). Saving an image again that was learnt from rebuilds from the initial state, since an incremental model cannot forget. Training from all annotations is a job (`POST /api/v2/fit/train`; progress is in `GET /api/v2/fit`).
+
+##### Several models, and a pre-fit
+
+Use as many models as you like and choose between them: for example a pretrained detector to get started, then an AAM trained on the first few images you correct, then that AAM on the rest of the frames. Give a list instead of one model (settings at the top are the defaults for every model; the first model is the default one):
+
+```yaml
+learn_on_save: true
+models:
+  - name: detector                        # what you choose in landmarker.io
+    model: mypackage.mediapipe:Landmarker # your own FitModel: fit only, trained elsewhere
+    options: {path: face_landmarker.task}
+  - name: aam
+    model: patch-aam
+prefit:                   # optional: fit the images that have no landmarks, up front
+  model: detector
+  template: face68        # the layout the landmarks are written in
+  on_start: true          # else start it with POST /api/v2/fit/models/<name>/predict/<template>
+  chain: false            # true: start each image from the one before it (the frames of a video)
+  overwrite: false        # true: fit again the images that already have a proposal
+```
+
+Every route above also exists for one model, as `/api/v2/fit/models/<name>/fit/<asset>/<template>`, `.../box/<asset>`, `.../train`, `.../learn/<asset>`, `.../learn_on_save` and `.../predict/<template>`; without `models/<name>` it is the first model, and `GET /api/v2/fit` is that model's status plus `models`, the status of each by name.
+
+The **pre-fit** (`predict`) fits every image that has no saved landmarks and keeps the result as a *proposal*, in `.prefit/<model>/` next to the images, never as a saved file. landmarker.io shows a proposal as the landmarks of the image (`"reviewed": false`, `"source": "prefit:<model>"`); **saving it, with or without changes, is what accepts it**: the real `.ljson` is written (`"reviewed": true`, `"fitted_by": "<model>"`) and the proposal is removed. A proposal is not an annotation, so no model learns from it and the image still counts as unlabelled.
 
 ### Templates
 

@@ -1,6 +1,7 @@
 import asyncio
 import copy
-from typing import Optional
+import functools
+from typing import Optional, Union
 
 from loguru import logger
 from sanic import Blueprint
@@ -12,9 +13,11 @@ from landmarkerio.collection import CollectionAdapter, MissingCollection
 from landmarkerio.fit import (
     AutoFit,
     Busy,
+    FitRegistry,
     NothingToLearn,
     NothingToRefine,
     NotReady,
+    UnknownModel,
 )
 from landmarkerio.landmark import LandmarkAdapter
 from landmarkerio.response import serve_gzip_binary_file, serve_image_file
@@ -28,7 +31,7 @@ def build_v2_blueprint(
     image_adapter: ImageAdapter,
     mesh_adapter: MeshAdapter,
     landmark_adapter: LandmarkAdapter,
-    fit: Optional[AutoFit] = None,
+    fit: Optional[Union[AutoFit, FitRegistry]] = None,
 ) -> Blueprint:
     api = Blueprint("v2", url_prefix="/api/v2")
 
@@ -117,21 +120,33 @@ def build_v2_blueprint(
             )
 
     if fit is not None:
+        registry = FitRegistry.of(fit)
 
-        @api.route("/fit")
-        async def fit_status(request):
-            return json(fit.status())
+        def model_or_404(name: Optional[str]) -> AutoFit:
+            try:
+                return registry.get(name)
+            except UnknownModel as e:
+                raise SanicException(str(e.args[0]), status_code=404)
 
-        @api.route("/fit/<asset_id>/<lm_id>", methods=("POST",))
-        async def fit_asset(request, asset_id, lm_id):
-            r"""The landmarks that are on the image (the body, as the client has them, saved or
-            not), refined by the model that learnt from the saved ones. Nothing is saved."""
-            if asset_id not in fit.ids_to_paths:
+        def asset_or_404(asset_id: str) -> None:
+            if asset_id not in registry.ids_to_paths:
                 raise SanicException(f"Unable to find {asset_id}", status_code=404)
+
+        # (errors are JSON whatever the handler: it hands over to the helpers above)
+        fit_route = functools.partial(api.route, error_format="json")
+
+        # Every route is for one model: /fit/models/<model>/..., or, without a model, the
+        # default one (so a client that knows only one model keeps working).
+
+        async def do_fit(request, model, asset_id):
+            r"""The landmarks that are on the image (the body, as the client has them, saved or
+            not), refined by the model. Nothing is saved."""
+            model_fit = model_or_404(model)
+            asset_or_404(asset_id)
             try:
                 points = await asyncio.get_running_loop().run_in_executor(
                     None,
-                    fit.fit,
+                    model_fit.fit,
                     asset_id,
                     (request.json or {}).get("landmarks", {}).get("points"),
                     (request.json or {}).get("box"),
@@ -140,62 +155,123 @@ def build_v2_blueprint(
                 raise SanicException(str(e), status_code=409)
             data = copy.deepcopy(request.json)
             data["landmarks"]["points"] = points.tolist()
+            data["fitted_by"] = model_fit.name
             return json(data)
 
-        @api.route("/fit/box/<asset_id>")
-        async def fit_box(request, asset_id):
+        async def do_box(model, asset_id):
             r"""The box the model would start from, ``[[row_min, col_min], [row_max, col_max]]``."""
-            if asset_id not in fit.ids_to_paths:
-                raise SanicException(f"Unable to find {asset_id}", status_code=404)
+            model_fit = model_or_404(model)
+            asset_or_404(asset_id)
             try:
                 box = await asyncio.get_running_loop().run_in_executor(
-                    None, fit.suggest_box, asset_id
+                    None, model_fit.suggest_box, asset_id
                 )
             except (NotReady, NothingToRefine) as e:
                 raise SanicException(str(e), status_code=409)
             return json(box.tolist())
 
-        @api.route("/fit/train", methods=("POST",))
-        async def fit_train(request):
+        def do_train(model):
             r"""Learn from all the annotations again, as a background job (see GET /fit)."""
             try:
-                return json(fit.train())
+                return json(model_or_404(model).train())
             except (Busy, NothingToLearn) as e:
                 raise SanicException(str(e), status_code=409)
 
-        @api.route("/fit/learn/<asset_id>", methods=("POST",))
-        async def fit_learn(request, asset_id):
+        def do_learn(model, asset_id):
             r"""Add one saved image to the model, as a background job (see GET /fit)."""
-            if asset_id not in fit.ids_to_paths:
-                raise SanicException(f"Unable to find {asset_id}", status_code=404)
+            model_fit = model_or_404(model)
+            asset_or_404(asset_id)
             try:
-                return json(fit.learn(asset_id))
+                return json(model_fit.learn(asset_id))
             except (Busy, NothingToLearn) as e:
                 raise SanicException(str(e), status_code=409)
 
-        @api.route("/fit/learn_on_save", methods=("POST",))
-        async def fit_learn_on_save(request):
+        def do_learn_on_save(request, model):
             r"""``{"enabled": true/false}``: learn from each image as it is saved, or not."""
+            model_fit = model_or_404(model)
             enabled = (request.json or {}).get("enabled")
             if not isinstance(enabled, bool):
                 raise SanicException(
                     'expected {"enabled": true or false}', status_code=400
                 )
-            fit.set_learn_on_save(enabled)
-            return json(fit.status())
+            model_fit.set_learn_on_save(enabled)
+            return json(model_fit.status())
 
-        @api.route("/fit/predict/<t_id>", methods=("POST",))
-        async def fit_predict(request, t_id):
-            r"""Fit every image without landmarks and write them as not reviewed, in the layout
-            of the template, as a background job (see GET /fit)."""
+        def do_predict(request, model, t_id):
+            r"""The pre-fit: fit every image without saved landmarks and keep the result as a
+            proposal (served as the landmarks until saved) in the layout of the template, as a
+            background job (see GET /fit). The body may have ``overwrite`` and ``chain``."""
+            model_fit = model_or_404(model)
             try:
                 skeleton = template_adapter.load_template(t_id)
             except MissingTemplate:
                 raise SanicException(f"No template {t_id}", status_code=404)
+            options = request.json or {}
             try:
-                return json(fit.predict(skeleton))
+                return json(
+                    model_fit.predict(
+                        skeleton,
+                        overwrite=bool(options.get("overwrite")),
+                        chain=bool(options.get("chain")),
+                    )
+                )
             except (Busy, NotReady, NothingToLearn) as e:
                 raise SanicException(str(e), status_code=409)
+
+        @fit_route("/fit")
+        async def fit_status(request):
+            r"""The default model's status, and ``models``: the status of each model by name."""
+            return json(registry.status())
+
+        # the default model
+        @fit_route("/fit/<asset_id>/<lm_id>", methods=("POST",))
+        async def fit_asset(request, asset_id, lm_id):
+            return await do_fit(request, None, asset_id)
+
+        @fit_route("/fit/box/<asset_id>")
+        async def fit_box(request, asset_id):
+            return await do_box(None, asset_id)
+
+        @fit_route("/fit/train", methods=("POST",))
+        async def fit_train(request):
+            return do_train(None)
+
+        @fit_route("/fit/learn/<asset_id>", methods=("POST",))
+        async def fit_learn(request, asset_id):
+            return do_learn(None, asset_id)
+
+        @fit_route("/fit/learn_on_save", methods=("POST",))
+        async def fit_learn_on_save(request):
+            return do_learn_on_save(request, None)
+
+        @fit_route("/fit/predict/<t_id>", methods=("POST",))
+        async def fit_predict(request, t_id):
+            return do_predict(request, None, t_id)
+
+        # a model by name
+        @fit_route("/fit/models/<model>/fit/<asset_id>/<lm_id>", methods=("POST",))
+        async def model_fit_asset(request, model, asset_id, lm_id):
+            return await do_fit(request, model, asset_id)
+
+        @fit_route("/fit/models/<model>/box/<asset_id>")
+        async def model_fit_box(request, model, asset_id):
+            return await do_box(model, asset_id)
+
+        @fit_route("/fit/models/<model>/train", methods=("POST",))
+        async def model_fit_train(request, model):
+            return do_train(model)
+
+        @fit_route("/fit/models/<model>/learn/<asset_id>", methods=("POST",))
+        async def model_fit_learn(request, model, asset_id):
+            return do_learn(model, asset_id)
+
+        @fit_route("/fit/models/<model>/learn_on_save", methods=("POST",))
+        async def model_fit_learn_on_save(request, model):
+            return do_learn_on_save(request, model)
+
+        @fit_route("/fit/models/<model>/predict/<t_id>", methods=("POST",))
+        async def model_fit_predict(request, model, t_id):
+            return do_predict(request, model, t_id)
 
     @api.route("/meshes")
     async def meshes(request):
