@@ -44,7 +44,9 @@ lmiocache = "landmarkerio.scripts.lmiocache:cli"
 lmioconvert = "landmarkerio.scripts.lmioconvert:cli"
 
 [dependency-groups]
-dev = ["pytest>=8", "sanic-testing", "ruff", "mypy", "types-PyYAML"]
+# fonttools 4.69.0 is on PyPI with CPython 3.11 wheels only, so uv sync fails on 3.14 (the lint job).
+# Revert the fonttools pin when it publishes the rest.
+dev = ["pytest>=8", "sanic-testing", "ruff", "mypy", "types-PyYAML", "fonttools<4.69"]
 
 [tool.setuptools.packages.find]
 include = ["landmarkerio*"]
