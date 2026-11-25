@@ -88,7 +88,7 @@ options:                  # the model's constructor arguments
   initial_scale: 0.6      # without a drawn box: the mean shape fills this much of the image
 initial_state: faces.pkl  # start from a model you trained elsewhere: it fits before anything is labelled
 save_state: learnt.pkl    # written after every update; use it as initial_state next time
-learn_on_save: true       # learn from each image as you save it (needs a model that can increment)
+learn_on_save: false      # learn from each image as you save it (needs a model that can increment)
 from_saved: true          # learn only from images saved through landmarker.io (false: every complete file)
 min_images: 8             # reviewed images before a model is built from scratch (no initial state)
 ```
@@ -118,7 +118,7 @@ A fit starts from, in this order: a **box you drew**, else the **current landmar
 Use as many models as you like and choose between them: for example a pretrained detector to get started, then an AAM trained on the first few images you correct, then that AAM on the rest of the frames. Give a list instead of one model (settings at the top are the defaults for every model; the first model is the default one):
 
 ```yaml
-learn_on_save: true
+learn_on_save: false
 models:
   - name: detector                        # what you choose in landmarker.io
     model: mypackage.mediapipe:Landmarker # your own FitModel: fit only, trained elsewhere

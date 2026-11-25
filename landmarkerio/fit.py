@@ -75,6 +75,9 @@ class FitModel(abc.ABC):
     #: Training needs at least this many images when there is no initial state.
     min_images = 8
 
+    #: The fewest images :meth:`increment` can be given at once (an AAM cannot align one shape).
+    min_increment = 1
+
     @abc.abstractmethod
     def fitter(self, state: Any) -> Any:
         r"""Make what :meth:`fit` uses from a state (called once per state, not per fit)."""
@@ -264,7 +267,7 @@ class AutoFit:
         initial_state: Any = None,
         min_images: Optional[int] = None,
         from_saved: bool = True,
-        learn_on_save: bool = True,
+        learn_on_save: bool = False,
         save_path: Optional[Path] = None,
         background: bool = True,
         name: str = "",
@@ -388,7 +391,13 @@ class AutoFit:
         with self._work:
             ids = self.annotated_ids()
             needed = 0 if self._initial is not None else self.min_images
-            if len(ids) < max(needed, 1):
+            if len(ids) < max(
+                needed,
+                1,
+                self.model.min_increment
+                if self._initial is not None and self.model.can_increment
+                else 1,
+            ):
                 return
             mtimes = {i: self._ljson_path(i).stat().st_mtime for i in ids}
             with self._lock:
@@ -398,7 +407,7 @@ class AutoFit:
             gone = [i for i in learnt if i not in mtimes]
             if learnt and not (new or changed or gone):
                 return
-            if not learnt or changed or gone:
+            if not learnt or changed or gone or len(new) < self.model.min_increment:
                 state = self._learn_from_start(ids)
                 learnt = {}
             else:
@@ -824,7 +833,7 @@ def _autofit(
         initial_state=initial,
         min_images=setting("min_images", None),
         from_saved=bool(setting("from_saved", True)),
-        learn_on_save=bool(setting("learn_on_save", True)),
+        learn_on_save=bool(setting("learn_on_save", False)),
         save_path=save_path,
         name=name or entry.get("name") or "",
         proposals=proposals,
@@ -855,7 +864,7 @@ def registry_from_config(
         initial_state: faces.pkl     # optional: start from this (read by the model's load())
         save_state: learnt.pkl       # optional: written after each update
         from_saved: true             # false: learn from every image with complete landmarks
-        learn_on_save: true          # learn from each image as it is saved (needs increment)
+        learn_on_save: false         # learn from each image as it is saved (needs increment)
         min_images: 8                # reviewed images to build a model without an initial state
 
     Several models, which the annotator chooses between (the first is the default; settings at

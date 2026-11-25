@@ -21,6 +21,9 @@ def _per_scale(value: Any) -> Any:
 class _AAMModel(FitModel):
     r"""Shared by the AAMs: grow a copy, fit with Lucas-Kanade."""
 
+    #: menpofit aligns the shapes of the images it is given, which needs two
+    min_increment = 2
+
     def __init__(
         self,
         diagonal: float = 150,
