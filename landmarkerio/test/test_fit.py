@@ -80,6 +80,12 @@ class Incrementing(Full):
 class FakeAutoFit(AutoFit):
     """Learns from the names of the assets, which is what the Full model counts."""
 
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault(
+            "learn_on_save", True
+        )  # the tests are about learning as you save
+        super().__init__(*args, **kwargs)
+
     def _load(self, asset_ids, progress=None):
         for _ in asset_ids:
             if progress:
@@ -967,3 +973,32 @@ def test_api_prefit_then_accept_as_it_is(api2):
     )
     assert "source" not in response.json
     assert registry.get("aam").status()["annotated"] == 4
+
+
+def test_learning_on_save_is_off_unless_asked_for(folder):
+    reviewed(folder, 3)
+    ids = {p.name: p for p in sorted(folder.glob("*.png"))}
+    assert AutoFit(ids, Full(), background=False).learn_on_save is False
+    assert autofit_from_config({}).learn_on_save is False
+
+
+class Pairs(Full):
+    """Like an AAM: cannot be given one image at a time."""
+
+    min_increment = 2
+
+    def increment(self, state, images):
+        if len(images) < 2:
+            raise ValueError("Need at least two sources to align")
+        return super().increment(state, images)
+
+
+def test_a_model_that_needs_two_images_to_increment_is_rebuilt_not_given_one(folder):
+    reviewed(folder, 3)
+    fit = make(folder, Pairs(), initial_state=["x"])
+    fit.refresh()
+    assert fit.status()["trained_on"] == 3
+    write(folder, "b0", [[1.0, 2.0]])
+    fit.ids_to_paths["b0.png"] = folder / "b0.png"
+    fit.refresh()  # one new image: starts again from the initial state with all four
+    assert fit.status()["trained_on"] == 4 and fit.status()["error"] is None
