@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 from loguru import logger
+from PIL import Image
 
 LJSON_GROUP = "LJSON"
 
@@ -315,12 +316,43 @@ class AutoFit:
             return None
         return np.array(points, dtype=float)
 
-    def _may_learn_from(self, asset_id: str) -> bool:
+    def _has_outside(self, asset_id: str, data: Optional[Dict[str, Any]]) -> bool:
+        """Is a landmark of the file outside the image (past its edge)? Landmarks are
+        ``(row, column)``, so the rows run to the height of the image and columns to its width."""
+        points = ((data or {}).get("landmarks") or {}).get("points")
+        if not points:
+            return False
+        try:
+            with Image.open(self.ids_to_paths[asset_id]) as image:
+                width, height = image.size
+        except (OSError, ValueError):  # not an image (a mesh has no frame)
+            return False
+        return any(
+            p[0] is not None and (p[0] < 0 or p[0] > height or p[1] < 0 or p[1] > width)
+            for p in points
+        )
+
+    def _saved_for_learning(self, asset_id: str) -> bool:
         """Complete landmarks, and saved through the server if ``from_saved``."""
         data = self._read(asset_id)
         if self._complete_points(data) is None:
             return False
         return not self.from_saved or bool((data or {}).get("reviewed"))
+
+    def _may_learn_from(self, asset_id: str) -> bool:
+        """Complete landmarks, saved if ``from_saved``, and all within the image: a landmark
+        outside it is where the model cannot see, so it is a guess."""
+        return self._saved_for_learning(asset_id) and not self._has_outside(
+            asset_id, self._read(asset_id)
+        )
+
+    def outside_ids(self) -> List[str]:
+        """The saved assets that are left out of learning for a landmark outside the image."""
+        return [
+            i
+            for i in sorted(self.ids_to_paths)
+            if self._saved_for_learning(i) and self._has_outside(i, self._read(i))
+        ]
 
     def annotated_ids(self) -> List[str]:
         """The assets that the model learns from."""
@@ -351,6 +383,7 @@ class AutoFit:
             "has_initial_state": self._initial is not None,
             "trained_on": learnt,
             "annotated": len(self.annotated_ids()),
+            "outside": len(self.outside_ids()),
             "unlabelled": len(self.unlabelled_ids()),
             "min_images": needed,
             "from_saved": self.from_saved,
@@ -481,6 +514,13 @@ class AutoFit:
             raise NothingToLearn(
                 f"{type(self.model).__name__} cannot learn one image at a time "
                 "(it has no increment())"
+            )
+        if self._saved_for_learning(asset_id) and self._has_outside(
+            asset_id, self._read(asset_id)
+        ):
+            raise NothingToLearn(
+                f"{asset_id} has a landmark outside the image: a model learns only from "
+                "images where every landmark is inside"
             )
         if not self._may_learn_from(asset_id):
             raise NothingToLearn(

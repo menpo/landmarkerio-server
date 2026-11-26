@@ -93,7 +93,13 @@ class FakeAutoFit(AutoFit):
         return list(asset_ids)
 
 
-def write(folder: Path, name: str, points, reviewed: Optional[bool] = True) -> None:
+def write(
+    folder: Path,
+    name: str,
+    points,
+    reviewed: Optional[bool] = True,
+    visible: Optional[list] = None,
+) -> None:
     Image.fromarray(np.zeros((20, 20, 3), dtype=np.uint8)).save(folder / f"{name}.png")
     if points is None:
         return
@@ -102,6 +108,8 @@ def write(folder: Path, name: str, points, reviewed: Optional[bool] = True) -> N
         "labels": [{"label": "all", "mask": list(range(len(points)))}],
         "landmarks": {"points": points, "connectivity": []},
     }
+    if visible is not None:
+        data["metadata"] = {"visible": visible}
     if reviewed is not None:
         data["reviewed"] = reviewed
     (folder / f"{name}.ljson").write_text(json.dumps(data))
@@ -817,6 +825,25 @@ def test_api_saving_through_the_server_teaches_the_model(api):
     assert fit.model.log[-1] == ("add", ["new.png"])
 
 
+def test_api_saving_keeps_which_landmarks_are_occluded_and_leaves_out_the_outside(api):
+    client, fit = api
+    payload = {
+        **BODY,
+        "landmarks": {
+            **BODY["landmarks"],
+            "points": [[7.0, 28.0]],
+        },  # right of the image
+        "metadata": {"visible": [0]},
+    }
+    _, response = client.put("/api/v2/landmarks/new.png/inplace", json=payload)
+    assert response.status == 200, response.text
+    _, response = client.get("/api/v2/landmarks/new.png/inplace")
+    assert response.json["metadata"] == {"visible": [0]}
+    assert response.json["reviewed"] is True
+    assert "new.png" not in fit.annotated_ids()  # outside: not learnt from
+    assert fit.outside_ids() == ["new.png"]
+
+
 def test_api_without_a_fit_service_has_no_fit_route(folder, tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     write(folder, "a", [[1.0, 2.0]])
@@ -1002,3 +1029,46 @@ def test_a_model_that_needs_two_images_to_increment_is_rebuilt_not_given_one(fol
     fit.ids_to_paths["b0.png"] = folder / "b0.png"
     fit.refresh()  # one new image: starts again from the initial state with all four
     assert fit.status()["trained_on"] == 4 and fit.status()["error"] is None
+
+
+# ---- landmarks outside the image (the test images are 20 by 20)
+def test_images_with_a_landmark_outside_are_not_learnt_from(folder):
+    reviewed(folder, 3)
+    write(folder, "b0", [[1.0, 2.0], [-3.0, 4.0]])  # above the image
+    write(folder, "b1", [[1.0, 2.0], [3.0, 25.0]])  # right of it
+    write(folder, "b2", [[1.0, 2.0], [3.0, 4.0]])
+    fit = make(folder, min_images=3)
+    assert fit.annotated_ids() == ["a0.png", "a1.png", "a2.png", "b2.png"]
+    assert fit.outside_ids() == ["b0.png", "b1.png"]
+    fit.train()
+    assert fit.model.log == [("build", ["a0.png", "a1.png", "a2.png", "b2.png"])]
+    status = fit.status()
+    assert status["outside"] == 2 and status["annotated"] == 4
+
+
+def test_the_edge_of_the_image_is_inside(folder):
+    write(folder, "e0", [[0.0, 0.0], [20.0, 20.0]])
+    fit = make(folder, min_images=1)
+    assert fit.outside_ids() == [] and fit.annotated_ids() == ["e0.png"]
+
+
+def test_occluded_landmarks_inside_the_image_are_learnt_from(folder):
+    write(folder, "o0", [[1.0, 2.0], [3.0, 4.0]], visible=[1, 0])
+    fit = make(folder, min_images=1)
+    assert fit.annotated_ids() == ["o0.png"] and fit.outside_ids() == []
+
+
+def test_an_unsaved_image_with_a_landmark_outside_is_not_counted(folder):
+    write(folder, "c0", [[-1.0, 2.0]], reviewed=False)
+    fit = make(folder, min_images=3)
+    assert fit.outside_ids() == [] and fit.annotated_ids() == []
+
+
+def test_learn_says_why_an_image_with_a_landmark_outside_is_left_out(folder):
+    reviewed(folder, 3)
+    write(folder, "b0", [[1.0, -2.0]])
+    fit = make(folder, min_images=3, learn_on_save=False)
+    fit.train()
+    fit.ids_to_paths["b0.png"] = folder / "b0.png"
+    with pytest.raises(NothingToLearn, match="outside the image"):
+        fit.learn("b0.png")
